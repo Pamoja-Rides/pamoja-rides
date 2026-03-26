@@ -1,0 +1,21 @@
+{
+  "translation": {
+    "errors": {
+      "loginFailed": "The email or password is incorrect"
+    },
+    "languageSelectionPage": {
+      "chooseLanguage": "Choose your language",
+      "nextButton": "Next"
+    },
+    "loginPage": {
+      "signIn": "Sign In",
+      "loginWithGoogle": "Sign in with Google",
+      "welcomeText": "Welcome back, Sign in to continue with Pamoja Ride.",
+      "phoneNumber": "Phone Number",
+      "password": "Password",
+      "signinBtn": "Sign in",
+      "noAccount": "Don't have an account?",
+      "signUpLink": "Sign Up"
+    }
+  }
+}

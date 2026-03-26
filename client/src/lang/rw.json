@@ -1,0 +1,21 @@
+{
+  "translation": {
+    "errors": {
+      "loginFailed": "Imyirondoro washyizemo ntago ariyo."
+    },
+    "languageSelectionPage": {
+      "chooseLanguage": "Hitamo ururimi",
+      "nextButton": "Ahakurikira"
+    },
+    "loginPage": {
+      "signIn": "Injira",
+      "loginWithGoogle": "Injira ukoresheje Google",
+      "welcomeText": "Urakaza Neza, Injira muri sistemu ukoreshe Pamoja Ride.",
+      "phoneNumber": "Terefoni",
+      "password": "Ijambo ry'ibanga",
+      "signinBtn": "Injira",
+      "noAccount": "Nta konti ufite?",
+      "signUpLink": "Fungura Konti"
+    }
+  }
+}
