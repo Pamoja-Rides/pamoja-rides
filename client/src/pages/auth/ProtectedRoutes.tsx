@@ -1,5 +1,4 @@
 import { isAuthenticated } from "@/utils/auth.util";
-import React from "react";
 import { Navigate, Outlet } from "react-router";
 
 export const ProtectedRoutes = () => {
