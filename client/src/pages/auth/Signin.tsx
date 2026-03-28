@@ -12,12 +12,12 @@ import {
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FcGoogle } from "react-icons/fc";
-import { Link, useOutletContext } from "react-router";
+import { Link, useNavigate, useOutletContext } from "react-router";
 
 type SubmissionType = {
   apiUrl: string;
   data: Record<string, string | boolean>;
-  urlNext: string | (() => void);
+  next: (token: string) => void;
 };
 
 export type OutletContextType = {
@@ -34,6 +34,8 @@ type formDataType = {
 
 export const Signin = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+
   const { handleSubmit, login, hasError, loading } =
     useOutletContext<OutletContextType>();
 
@@ -48,7 +50,10 @@ export const Signin = () => {
   const submission = {
     apiUrl: `${baseUrl}/users/signin/`,
     data: formData,
-    urlNext: "/home",
+    next: (token: string) => {
+      localStorage.setItem("token", token);
+      navigate("/");
+    },
   };
 
   return (

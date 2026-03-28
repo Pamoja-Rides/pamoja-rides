@@ -1,3 +1,4 @@
+import uuid # 1. Import the uuid module
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
 from django.utils import timezone
@@ -18,13 +19,15 @@ class UserManager(BaseUserManager):
         return self.create_user(phone_number, password, **extra_fields)
 
 class User(AbstractUser):
+    # 2. Define the UUID primary key
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    
     phone_number = models.CharField(max_length=15, unique=True, null=True, blank=True)
     username = models.CharField(max_length=150, unique=True, null=True, blank=True)
     email = models.EmailField(unique=True, null=True, blank=True)
     is_verified = models.BooleanField(default=False)
     preferred_language = models.CharField(max_length=2, default='en')
 
-    # Django Admin uses this field to label the user
     USERNAME_FIELD = 'phone_number' 
     REQUIRED_FIELDS = ['first_name', 'last_name']
 
@@ -38,7 +41,10 @@ class User(AbstractUser):
 
 
 class VerificationCode(models.Model):
-    # Change 'on_api_delete' to 'on_delete'
+    # 3. Apply UUID here as well for consistency
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    
+    # ForeignKey automatically handles the UUID type if the parent (User) uses it
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='verification_codes')
     code = models.CharField(max_length=4)
     created_at = models.DateTimeField(auto_now_add=True)

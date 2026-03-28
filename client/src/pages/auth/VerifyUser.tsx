@@ -9,13 +9,14 @@ import {
 } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useOutletContext } from "react-router";
+import { useNavigate, useOutletContext } from "react-router";
 import type { OutletContextType } from "./Signin";
 import { useVerifyUserStore } from "@/store/store";
 import { baseUrl } from "@/main";
 
 export const VerifyUser = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { handleSubmit, hasError, loading } =
     useOutletContext<OutletContextType>();
   const { email } = useVerifyUserStore((state) => state.verificationData);
@@ -27,7 +28,10 @@ export const VerifyUser = () => {
   const submission = {
     apiUrl: `${baseUrl}/users/verify-code/`,
     data: { email, code },
-    urlNext: "/home",
+    next: (token: string) => {
+      localStorage.setItem("token", token);
+      navigate("/");
+    },
   };
 
   useEffect(() => {
@@ -46,7 +50,7 @@ export const VerifyUser = () => {
     handleSubmit({
       apiUrl: `${baseUrl}/users/verify-code/`,
       data: { email, code, resend: true },
-      urlNext: () => setOpenModal(true),
+      next: () => setOpenModal(true),
     });
     setTimer(30);
   };

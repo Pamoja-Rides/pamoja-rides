@@ -11,13 +11,14 @@ import {
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FcGoogle } from "react-icons/fc";
-import { Link, useOutletContext } from "react-router";
+import { Link, useNavigate, useOutletContext } from "react-router";
 import type { OutletContextType } from "./Signin";
 import { useVerifyUserStore } from "@/store/store";
 import { baseUrl } from "@/main";
 
 export const Signup = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { handleSubmit, hasError, login, loading } =
     useOutletContext<OutletContextType>();
   const setFormState = useVerifyUserStore((state) => state.setVerificationData);
@@ -36,7 +37,7 @@ export const Signup = () => {
   const submission = {
     apiUrl: `${baseUrl}/users/signup/`,
     data: formData,
-    urlNext: "/verify",
+    next: () => navigate("/verify"),
   };
 
   return (
