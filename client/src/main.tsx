@@ -6,6 +6,8 @@ import App from "./App.tsx";
 import "@/lang/config.ts";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 
+export const baseUrl = import.meta.env.VITE_API_URL;
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>

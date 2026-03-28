@@ -1,5 +1,7 @@
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
+from django.utils import timezone
+from datetime import timedelta
 
 class UserManager(BaseUserManager):
     def create_user(self, phone_number=None, password=None, **extra_fields):
@@ -33,3 +35,17 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.phone_number or self.username or "Unknown User"
+
+
+class VerificationCode(models.Model):
+    # Change 'on_api_delete' to 'on_delete'
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='verification_codes')
+    code = models.CharField(max_length=4)
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_used = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = "verification_codes"
+
+    def is_valid(self):
+        return not self.is_used and self.created_at >= timezone.now() - timedelta(minutes=10)

@@ -16,6 +16,35 @@
       "signinBtn": "Injira",
       "noAccount": "Nta konti ufite?",
       "signUpLink": "Fungura Konti"
+    },
+    "signupPage": {
+      "signUp": "Gufungura konti nshya",
+      "signupWithGoogle": "Fungura konti na Google",
+      "welcomeText": "Urakaza Neza, Fungura konti nshya uryoherwe na Pamoja Ride.",
+      "firstName": "Izina Ribanza",
+      "lastName": "Irindi Zina",
+      "phoneNumber": "Terefoni",
+      "email": "Imeli",
+      "password": "Ijambo ry'ibanga",
+      "signupBtn": "Fungura koni",
+      "haveAccount": "Usanzwe ufite konti?",
+      "signinLink": "Injira muri konti",
+      "placeholders": {
+        "firstName": "Andika izina ryawe ribanza",
+        "lastName": "Andika irindi zina ryawe",
+        "email": "Andika imeli yawe"
+      }
+    },
+    "verifyPage": {
+      "welcomeText": "Suzuma Imeli yawe",
+      "welcomeSubText": "Andika code ifite imibare 4 twohereje kuri imeli yawe",
+      "noCode": "Waba nta code wabonye?",
+      "resend": "Saba code nanone",
+      "resendSuccess": "Code yo gusuzuma imeli yawe yoherejwe neza.",
+      "verifyCodeBtn": "Suzumisha Code"
+    },
+    "successDialog": {
+      "title": "Byakunze"
     }
   }
 }
