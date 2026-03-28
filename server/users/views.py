@@ -17,12 +17,10 @@ class SignupView(APIView):
         serializer = UserSignupSerializer(data=request.data)
         if serializer.is_valid():
             try:
-                # Start a transaction block
                 with transaction.atomic():
                     user = serializer.save()
                     pin = VerificationService.generate_pin(user)
                     
-                    # We instantiate the service inside the transaction
                     message_service = MessageServices()
                     
                     if user.email:
@@ -31,15 +29,15 @@ class SignupView(APIView):
                             "Verify your email", 
                             f'Your 4 digits pin: {pin}'
                         )
-                        # Optional: If email is MISSION CRITICAL, raise an error to rollback
                         if email_res.get("status") == "error":
                              raise Exception("Email delivery failed")
 
-                # If we reach here, DB changes are committed
-                return Response({'token': generate_token(user)}, status=201)
+                    # Generate token INSIDE the atomic block to ensure rollback on failure
+                    token = generate_token(user)
+
+                return Response({'token': token}, status=201)
                 
             except Exception as e:
-                # Any error inside the 'with' block triggers a rollback
                 return Response({'error': f'Registration failed: {str(e)}'}, status=500)
                 
         return Response(serializer.errors, status=400)
@@ -64,9 +62,11 @@ class VerifyEmailView(APIView):
                     return Response({'message': 'Code resent successfully'}, status=200)
                     
                 if VerificationService.verify_pin(user, code):
+                    # Generate token INSIDE the atomic block
+                    token = generate_token(user)
                     return Response({
                         'message': 'Account verified successfully', 
-                        'token': generate_token(user)
+                        'token': token
                     }, status=200)
                     
             return Response({'error': 'Invalid or expired code'}, status=400)
@@ -87,10 +87,16 @@ class SigninView(APIView):
                     'error': 'Account not verified. Please check your email.'
                 }, status=403)
 
-            return Response({
-                'user': UserSerializer(user).data,
-                'token': generate_token(user)
-            }, status=200)
+            # Note: Signin usually doesn't need atomic transactions as it's a read operation,
+            # but wrapping the response data generation handles serialization errors gracefully.
+            try:
+                return Response({
+                    'user': UserSerializer(user).data,
+                    'token': generate_token(user)
+                }, status=200)
+            except Exception as e:
+                return Response({'error': f'Login failed: {str(e)}'}, status=500)
+                
         return Response({'error': 'Invalid Credentials'}, status=401)
 
 class GoogleSigninView(APIView):
@@ -121,10 +127,13 @@ class GoogleSigninView(APIView):
                 if not user.is_verified and google_verified:
                     user.is_verified = True
                     user.save()
+                
+                # Serialize and generate token INSIDE the block
+                response_data = {
+                    'user': UserSerializer(user).data,
+                    'token': generate_token(user)
+                }
 
-            return Response({
-                'user': UserSerializer(user).data,
-                'token': generate_token(user)
-            }, status=200)
+            return Response(response_data, status=200)
         except Exception as e:
-            return Response({'error': 'Google authentication failed'}, status=500)
+            return Response({'error': f'Google authentication failed: {str(e)}'}, status=500)

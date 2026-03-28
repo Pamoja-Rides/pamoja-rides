@@ -1,0 +1,60 @@
+{
+  "translation": {
+    "errors": {
+      "loginFailed": "L'adresse e-mail ou le mot de passe est incorrect"
+    },
+    "languageSelectionPage": {
+      "chooseLanguage": "Choisissez votre langue",
+      "nextButton": "Suivant"
+    },
+    "loginPage": {
+      "signIn": "Se connecter",
+      "loginWithGoogle": "Se connecter avec Google",
+      "welcomeText": "Bon retour parmi nous, connectez-vous pour continuer avec Pamoja Ride.",
+      "phoneNumber": "Numéro de téléphone",
+      "password": "Mot de passe",
+      "signinBtn": "Se connecter",
+      "noAccount": "Vous n'avez pas de compte ?",
+      "signUpLink": "S'inscrire"
+    },
+    "signupPage": {
+      "signUp": "S'inscrire",
+      "signupWithGoogle": "S'inscrire avec Google",
+      "welcomeText": "Bienvenue, inscrivez-vous pour profiter de Pamoja Ride.",
+      "firstName": "Prénom",
+      "lastName": "Nom",
+      "phoneNumber": "Numéro de téléphone",
+      "email": "E-mail",
+      "password": "Mot de passe",
+      "signupBtn": "S'inscrire",
+      "haveAccount": "Vous avez déjà un compte ?",
+      "signinLink": "Se connecter",
+      "placeholders": {
+        "firstName": "Entrez votre prénom",
+        "lastName": "Entrez votre nom",
+        "email": "Entrez votre adresse e-mail"
+      }
+    },
+    "verifyPage": {
+      "welcomeText": "Vérifiez votre e-mail",
+      "welcomeSubText": "Entrez le code à 4 chiffres envoyé à votre adresse e-mail",
+      "noCode": "Vous n'avez pas reçu le code ?",
+      "resend": "Renvoyer le code",
+      "resendSuccess": "Le code de vérification a été renvoyé avec succès, vérifiez votre boîte mail",
+      "verifyCodeBtn": "Vérifier le code"
+    },
+    "homePage": {
+      "heroText": "Partagez vos trajets à travers le Rwanda",
+      "heroSubText": "Connectez-vous avec des voyageurs, économisez et voyagez ensemble",
+      "placeholders": {
+        "from": "Départ",
+        "to": "Destination",
+        "when": "Quand"
+      },
+      "searchBtn": "Trouver un trajet"
+    },
+    "successDialog": {
+      "title": "Succès"
+    }
+  }
+}

@@ -24,11 +24,11 @@ export const AuthLayout = () => {
   const handleSubmit = async ({
     apiUrl,
     data,
-    urlNext,
+    next,
   }: {
     apiUrl: string;
     data: Record<string, string>;
-    urlNext: string | (() => void);
+    next: (token: string) => void;
   }) => {
     try {
       setLoading(true);
@@ -36,11 +36,7 @@ export const AuthLayout = () => {
 
       if (res.status === 200 || res.status === 201) {
         setLoading(false);
-        if (typeof urlNext === "string") {
-          navigate(urlNext);
-        } else {
-          urlNext();
-        }
+        next(res.data.token);
       }
     } catch (err: unknown) {
       setLoading(false);
@@ -61,7 +57,10 @@ export const AuthLayout = () => {
       const res = await axios.post(`${baseUrl}/users/google-auth/`, {
         access_token: tokenResponse.access_token,
       });
-      if (res.status === 200) navigate("/home");
+      if (res.status === 200) {
+        localStorage.setItem("token", res.data.token);
+        navigate("/");
+      }
     },
     onError: () =>
       setError({

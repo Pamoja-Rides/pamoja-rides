@@ -43,7 +43,16 @@
       "resendSuccess": "The verification code was resent successfully, check your email",
       "verifyCodeBtn": "Verify Code"
     },
-
+    "homePage": {
+      "heroText": "Share rides across Rwanda",
+      "heroSubText": "Connect with travelers, Save money and travel together",
+      "placeholders": {
+        "from": "From",
+        "to": "To",
+        "when": "When"
+      },
+      "searchBtn": "Find a ride"
+    },
     "successDialog": {
       "title": "Success"
     }

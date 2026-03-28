@@ -15,8 +15,7 @@ export const LanguageSelection = () => {
       positioning={{ sameWidth: false }}
       collection={languages}
       size="sm"
-      width="320px"
-      defaultValue={["react"]}
+      defaultValue={["en"]}
     >
       <Select.HiddenSelect />
       <Select.Control>

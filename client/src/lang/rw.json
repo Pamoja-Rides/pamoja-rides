@@ -43,6 +43,16 @@
       "resendSuccess": "Code yo gusuzuma imeli yawe yoherejwe neza.",
       "verifyCodeBtn": "Suzumisha Code"
     },
+    "homePage": {
+      "heroText": "Huza urugendo n'abandi bagenzi mu Rwanda",
+      "heroSubText": "Hura n'abandi bagenzi, wizigamire amafaranga",
+      "placeholders": {
+        "from": "Uvuye",
+        "to": "Ugiye",
+        "when": "Ryari"
+      },
+      "searchBtn": "Shakisha urugendo"
+    },
     "successDialog": {
       "title": "Byakunze"
     }

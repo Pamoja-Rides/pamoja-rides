@@ -1,22 +1,29 @@
 import React from "react";
 import { Route, Routes } from "react-router";
-import { SplashScreen } from "@/pages";
-import { Text } from "@chakra-ui/react";
-import { AuthLayout } from "./pages/auth/AuthLayout";
+import { Home, SplashScreen } from "@/pages";
+import {
+  AuthLayout,
+  ProtectedRoutes,
+  PublicRoutes,
+  Signin,
+  VerifyUser,
+} from "./pages/auth";
 import { Signup } from "./pages/auth/Signup";
-import { Signin } from "./pages/auth/Signin";
-import { VerifyUser } from "./pages/auth/VerifyUser";
 
 const App = () => {
   return (
     <Routes>
       <Route path="/splash" element={<SplashScreen />} />
-      <Route element={<AuthLayout />}>
-        <Route path="/signin" element={<Signin />} />
-        <Route path="/signup" element={<Signup />} />
-        <Route path="/verify" element={<VerifyUser />} />
+      <Route element={<PublicRoutes />}>
+        <Route element={<AuthLayout />}>
+          <Route path="/signin" element={<Signin />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/verify" element={<VerifyUser />} />
+        </Route>
       </Route>
-      <Route path="/home" element={<Text>Home page</Text>} />
+      <Route element={<ProtectedRoutes />}>
+        <Route path="/" element={<Home />} />
+      </Route>
     </Routes>
   );
 };
