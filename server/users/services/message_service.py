@@ -9,28 +9,21 @@ load_dotenv()
 
 class MessageServices:
     def __init__(self) -> None:
-        # Africa's Talking Config
-        self.username = os.getenv('AT_USERNAME')
-        self.api_key = os.getenv('AT_API_KEY')
-        africastalking.initialize(self.username, self.api_key)
-        self.sms = africastalking.SMS
-        self.sender_id = os.getenv('AT_SENDER_ID')
-
         # SMTP Config (New)
         self.email_host = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
         self.email_port = int(os.getenv('EMAIL_PORT', 465))
         self.email_user = os.getenv('EMAIL_USER')
         self.email_pass = os.getenv('EMAIL_APP_PASSWORD')
 
-    def send_verification(self, phone_number):
-        try:
-            message = "Welcome to the Carpooling App! Your account has been created successfully."
-            recipients = [phone_number] 
-            response = self.sms.send(message, recipients, self.sender_id)
-            return response
-        except Exception as e:
-            print(f"SMS Error: {e}")
-            return None
+    # def send_verification(self, phone_number):
+    #     try:
+    #         message = "Welcome to the Carpooling App! Your account has been created successfully."
+    #         recipients = [phone_number] 
+    #         response = self.sms.send(message, recipients, self.sender_id)
+    #         return response
+    #     except Exception as e:
+    #         print(f"SMS Error: {e}")
+    #         return None
 
     def send_email(self, recipient_email, subject, body):
         """
