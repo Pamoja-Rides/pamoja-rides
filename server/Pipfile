@@ -15,6 +15,7 @@ google-auth = "*"
 requests = "*"
 africastalking = "*"
 gunicorn = "*"
+resend = "*"
 
 [dev-packages]
 
