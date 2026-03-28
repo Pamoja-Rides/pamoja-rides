@@ -16,6 +16,36 @@
       "signinBtn": "Sign in",
       "noAccount": "Don't have an account?",
       "signUpLink": "Sign Up"
+    },
+    "signupPage": {
+      "signUp": "Sign Up",
+      "signupWithGoogle": "Sign up with Google",
+      "welcomeText": "Welcome, Sign up to enjoy Pamoja Ride.",
+      "firstName": "First Name",
+      "lastName": "Last Name",
+      "phoneNumber": "Phone Number",
+      "email": "Email",
+      "password": "Password",
+      "signupBtn": "Sign up",
+      "haveAccount": "Have an account already?",
+      "signinLink": "Sign In",
+      "placeholders": {
+        "firstName": "Enter your First Name",
+        "lastName": "Enter your Last Name",
+        "email": "Enter your email"
+      }
+    },
+    "verifyPage": {
+      "welcomeText": "Verify your email",
+      "welcomeSubText": "Enter the 4-digit code sent to your email",
+      "noCode": "Didn't receive the code?",
+      "resend": "Resend Code",
+      "resendSuccess": "The verification code was resent successfully, check your email",
+      "verifyCodeBtn": "Verify Code"
+    },
+
+    "successDialog": {
+      "title": "Success"
     }
   }
 }
