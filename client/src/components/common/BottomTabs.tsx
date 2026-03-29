@@ -9,7 +9,7 @@ import {
   LuSearch,
   LuUser,
 } from "react-icons/lu";
-import { NavLink } from "react-router";
+import { NavLink, useNavigate } from "react-router";
 
 export const BottomTabs = () => {
   const ref = useRef<HTMLDivElement | null>(null);
@@ -96,6 +96,7 @@ const AccountMenu = ({
   getAnchorRect: () => DOMRect;
 }) => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
 
   return (
     <Menu.Root
@@ -113,6 +114,17 @@ const AccountMenu = ({
             <Menu.Item value="copy">
               <LuUser />
               <Box flex="1">{t("bottomTabs.accountMenu.profile")}</Box>
+            </Menu.Item>
+            <Menu.Item
+              value="log out"
+              color="fg.error"
+              _hover={{ bg: "bg.error", color: "fg.error" }}
+              onClick={() => {
+                localStorage.removeItem("token");
+                navigate("/signin");
+              }}
+            >
+              Log out
             </Menu.Item>
           </Menu.Content>
         </Menu.Positioner>

@@ -8,7 +8,7 @@ import {
   VerifyUser,
 } from "./pages/auth";
 import { Signup } from "./pages/auth/Signup";
-import { Home } from "./pages/protected";
+import { Home, Search } from "./pages/protected";
 
 const App = () => {
   return (
@@ -23,7 +23,7 @@ const App = () => {
       </Route>
       <Route element={<ProtectedRoutes />}>
         <Route path="/" element={<Home />} />
-        <Route path={"/search"} element={<h1>Search Page</h1>} />
+        <Route path={"/search"} element={<Search />} />
         <Route path={"/post"} element={<h1>Post Page</h1>} />
         <Route path={"/rides"} element={<h1>My rides Page</h1>} />
       </Route>

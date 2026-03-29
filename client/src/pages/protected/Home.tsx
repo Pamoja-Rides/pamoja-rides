@@ -1,23 +1,27 @@
 import {
   Box,
   Container,
-  EmptyState,
   Flex,
   Heading,
   Image,
   Stack,
   Text,
-  VStack,
 } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import logoIc from "@/assets/logoIc.svg";
 import { HomeSearch } from "@/components/home/HomeSearch";
-import { Utilities } from "@/components/common";
+import { Empty, Utilities } from "@/components/common";
 import { LuSquareDashedMousePointer } from "react-icons/lu";
 
 export const Home = () => {
   const { t } = useTranslation();
   const mainBlue = "blue.600";
+
+  const emptyStateProps = {
+    icon: <LuSquareDashedMousePointer />,
+    title: t("homePage.empty.title"),
+    desc: t("homePage.empty.description"),
+  };
 
   return (
     <>
@@ -36,7 +40,7 @@ export const Home = () => {
                 <Image src={logoIc} />
               </Box>
 
-              <Utilities />
+              <Utilities color="white" />
             </Flex>
 
             <Stack gap={3} align="center">
@@ -51,19 +55,7 @@ export const Home = () => {
         </Box>
         <Container maxW="container.md" position="relative" mt={-16} gap={20}>
           <HomeSearch />
-          <EmptyState.Root size={"sm"}>
-            <EmptyState.Content>
-              <EmptyState.Indicator>
-                <LuSquareDashedMousePointer />
-              </EmptyState.Indicator>
-              <VStack textAlign="center">
-                <EmptyState.Title>{t("homePage.empty.title")}</EmptyState.Title>
-                <EmptyState.Description>
-                  {t("homePage.empty.description")}
-                </EmptyState.Description>
-              </VStack>
-            </EmptyState.Content>
-          </EmptyState.Root>
+          <Empty {...emptyStateProps} />
         </Container>
       </Box>
     </>

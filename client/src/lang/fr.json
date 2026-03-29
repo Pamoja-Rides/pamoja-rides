@@ -63,6 +63,23 @@
         "profile": "Profil"
       }
     },
+    "searchPage": {
+      "header": "Rechercher"
+    },
+    "filterDrawer": {
+      "title": "Filtrer par",
+      "resetBtn": "Réinitialiser",
+      "applyBtn": "Appliquer"
+    },
+    "filters": {
+      "departureDate": "Date de départ",
+      "today": "Aujourd'hui",
+      "thisWeek": "Cette semaine",
+      "thisMonth": "Ce mois-ci",
+      "seats": "places",
+      "seatsFilter": "Places",
+      "priceTitle": "Prix"
+    },
     "successDialog": {
       "title": "Succès"
     }
