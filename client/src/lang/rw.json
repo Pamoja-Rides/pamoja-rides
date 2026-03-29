@@ -63,6 +63,23 @@
         "profile": "Wowe"
       }
     },
+    "searchPage": {
+      "header": "Gushakikisha"
+    },
+    "filterDrawer": {
+      "title": "Shakisha birenzeho ukoresheje",
+      "resetBtn": "Siba",
+      "applyBtn": "Emeza"
+    },
+    "filters": {
+      "departureDate": "Umunsi wo guhagurukiraho",
+      "today": "Uyu munsi",
+      "thisWeek": "Icyi cyumweru",
+      "thisMonth": "Uku kwezi",
+      "seats": "imyanya",
+      "seatsFilter": "Imyanya",
+      "priceTitle": "Igiciro"
+    },
     "successDialog": {
       "title": "Byakunze"
     }

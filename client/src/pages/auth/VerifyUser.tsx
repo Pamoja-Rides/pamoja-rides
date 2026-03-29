@@ -1,4 +1,3 @@
-import { Success } from "@/components/overlays/Success";
 import {
   Button,
   Flex,
@@ -13,6 +12,7 @@ import { useNavigate, useOutletContext } from "react-router";
 import type { OutletContextType } from "./Signin";
 import { useVerifyUserStore } from "@/store/store";
 import { baseUrl } from "@/main";
+import { Success } from "@/components/overlays";
 
 export const VerifyUser = () => {
   const { t } = useTranslation();

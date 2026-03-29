@@ -63,6 +63,23 @@
         "profile": "Profile"
       }
     },
+    "searchPage": {
+      "header": "Search"
+    },
+    "filterDrawer": {
+      "title": "Filter By",
+      "resetBtn": "Reset",
+      "applyBtn": "Apply"
+    },
+    "filters": {
+      "departureDate": "Departure date",
+      "today": "Today",
+      "thisWeek": "This week",
+      "thisMonth": "This month",
+      "seats": "seats",
+      "seatsFilter": "Seats",
+      "priceTitle": "Price"
+    },
     "successDialog": {
       "title": "Success"
     }
