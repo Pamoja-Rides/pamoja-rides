@@ -1,7 +1,7 @@
 {
   "translation": {
     "errors": {
-      "loginFailed": "L'adresse e-mail ou le mot de passe est incorrect"
+      "loginFailed": "L'e-mail ou le mot de passe est incorrect"
     },
     "languageSelectionPage": {
       "chooseLanguage": "Choisissez votre langue",
@@ -10,7 +10,7 @@
     "loginPage": {
       "signIn": "Se connecter",
       "loginWithGoogle": "Se connecter avec Google",
-      "welcomeText": "Bon retour parmi nous, connectez-vous pour continuer avec Pamoja Ride.",
+      "welcomeText": "Bon retour, connectez-vous pour continuer avec Pamoja Ride.",
       "phoneNumber": "Numéro de téléphone",
       "password": "Mot de passe",
       "signinBtn": "Se connecter",
@@ -32,7 +32,7 @@
       "placeholders": {
         "firstName": "Entrez votre prénom",
         "lastName": "Entrez votre nom",
-        "email": "Entrez votre adresse e-mail"
+        "email": "Entrez votre e-mail"
       }
     },
     "verifyPage": {
@@ -40,18 +40,28 @@
       "welcomeSubText": "Entrez le code à 4 chiffres envoyé à votre adresse e-mail",
       "noCode": "Vous n'avez pas reçu le code ?",
       "resend": "Renvoyer le code",
-      "resendSuccess": "Le code de vérification a été renvoyé avec succès, vérifiez votre boîte mail",
+      "resendSuccess": "Le code de vérification a été renvoyé avec succès, vérifiez votre boîte de réception",
       "verifyCodeBtn": "Vérifier le code"
     },
     "homePage": {
       "heroText": "Partagez vos trajets à travers le Rwanda",
-      "heroSubText": "Connectez-vous avec des voyageurs, économisez et voyagez ensemble",
+      "heroSubText": "Connectez-vous avec des voyageurs, économisez de l'argent et voyagez ensemble",
       "placeholders": {
-        "from": "Départ",
-        "to": "Destination",
+        "from": "De",
+        "to": "À",
         "when": "Quand"
       },
+      "empty": {
+        "title": "Aucun trajet disponible",
+        "description": "Il n'y a pas de trajets disponibles. Vous pouvez publier un trajet pour commencer"
+      },
       "searchBtn": "Trouver un trajet"
+    },
+    "bottomTabs": {
+      "accountMenu": {
+        "payments": "Paiements",
+        "profile": "Profil"
+      }
     },
     "successDialog": {
       "title": "Succès"

@@ -51,7 +51,17 @@
         "to": "Ugiye",
         "when": "Ryari"
       },
+      "empty": {
+        "title": "Nta ngendo zabonetse",
+        "description": "Nta ngendo zabonetse. Ushobora gutangiza urugendo rushya"
+      },
       "searchBtn": "Shakisha urugendo"
+    },
+    "bottomTabs": {
+      "accountMenu": {
+        "payments": "Kwishyurwa",
+        "profile": "Wowe"
+      }
     },
     "successDialog": {
       "title": "Byakunze"

@@ -2,17 +2,32 @@
 
 body {
   margin: 0;
-  display: flex;
-  justify-content: center;
+  padding: 0;
+  /* Remove display: flex and justify-content */
+  background-color: transparent;
 }
 
 #root {
   width: 100%;
-  max-width: 768px; /* Standard Tablet Width */
+  max-width: 768px;
+  /* Use margin: 0 auto to center the tablet shell */
+  margin: 0 auto;
   min-height: 100vh;
+  /* This ensures the page can actually grow and scroll */
+  display: block;
+  position: relative;
+  /* Add padding-bottom so content doesn't get hidden behind your fixed nav */
+  padding-bottom: 80px;
 }
 
-/* Ensures Chakra portals (modals/drawers) align with your centered app */
+/* Ensure fixed elements stay centered relative to the screen, not the #root */
+#root [style*="position: fixed"] {
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: 100% !important;
+  max-width: 768px !important;
+}
+
 .chakra-portal {
   display: flex;
   justify-content: center;

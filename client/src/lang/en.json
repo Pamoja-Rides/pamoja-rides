@@ -51,7 +51,17 @@
         "to": "To",
         "when": "When"
       },
+      "empty": {
+        "title": "No rides available",
+        "description": "There are no available rides. You can post a ride to get started"
+      },
       "searchBtn": "Find a ride"
+    },
+    "bottomTabs": {
+      "accountMenu": {
+        "payments": "Payments",
+        "profile": "Profile"
+      }
     },
     "successDialog": {
       "title": "Success"
