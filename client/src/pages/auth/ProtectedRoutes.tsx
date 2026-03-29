@@ -1,7 +1,12 @@
 import { isAuthenticated } from "@/utils/auth.util";
-import { Navigate, Outlet } from "react-router";
+import { Navigate } from "react-router";
+import { ProtectedRouteLayout } from "../protected/ProtectedRouteLayout";
 
 export const ProtectedRoutes = () => {
   const authenticated = isAuthenticated();
-  return authenticated ? <Outlet /> : <Navigate to={"/signin"} replace />;
+  return authenticated ? (
+    <ProtectedRouteLayout />
+  ) : (
+    <Navigate to={"/signin"} replace />
+  );
 };

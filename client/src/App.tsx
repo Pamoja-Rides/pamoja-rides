@@ -1,5 +1,5 @@
 import { Route, Routes } from "react-router";
-import { Home, SplashScreen } from "@/pages";
+import { SplashScreen } from "@/pages";
 import {
   AuthLayout,
   ProtectedRoutes,
@@ -8,6 +8,7 @@ import {
   VerifyUser,
 } from "./pages/auth";
 import { Signup } from "./pages/auth/Signup";
+import { Home } from "./pages/protected";
 
 const App = () => {
   return (
@@ -22,6 +23,9 @@ const App = () => {
       </Route>
       <Route element={<ProtectedRoutes />}>
         <Route path="/" element={<Home />} />
+        <Route path={"/search"} element={<h1>Search Page</h1>} />
+        <Route path={"/post"} element={<h1>Post Page</h1>} />
+        <Route path={"/rides"} element={<h1>My rides Page</h1>} />
       </Route>
     </Routes>
   );
