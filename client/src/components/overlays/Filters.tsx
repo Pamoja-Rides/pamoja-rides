@@ -1,26 +1,22 @@
 import {
   Box,
   Button,
-  Field,
   Grid,
   Heading,
   HStack,
-  Input,
-  InputGroup,
-  RatingGroup,
   Separator,
   Slider,
-  Text,
   VStack,
 } from "@chakra-ui/react";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { LuSearch, LuTags, LuUsers } from "react-icons/lu";
+import { LuTags } from "react-icons/lu";
+import { LocationComboBox, SeatSelector } from "../common";
+import { useState } from "react";
 
 export const Filters = () => {
   const { t } = useTranslation();
-  const [selectedSeatNumber, setSelectedSeatNumber] = useState(1);
-
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
   const marks = [
     { value: 0, label: "1000" },
     { value: 50, label: "5000" },
@@ -31,16 +27,17 @@ export const Filters = () => {
       <Heading size={"sm"}>{t("filters.departureDate")}</Heading>
       <VStack rowGap={5} marginBlock={5}>
         <HStack w={"full"}>
-          <Field.Root colorPalette={"blue"}>
-            <InputGroup startElement={<LuSearch />}>
-              <Input placeholder={t("homePage.placeholders.from")} />
-            </InputGroup>
-          </Field.Root>
-          <Field.Root colorPalette={"blue"}>
-            <InputGroup startElement={<LuSearch />}>
-              <Input placeholder={t("homePage.placeholders.to")} />
-            </InputGroup>
-          </Field.Root>
+          <LocationComboBox
+            placeholder={t("homePage.placeholders.from")}
+            value={from}
+            onSelect={(loc) => setFrom(loc.name)}
+          />
+
+          <LocationComboBox
+            placeholder={t("homePage.placeholders.to")}
+            value={to}
+            onSelect={(loc) => setTo(loc.name)}
+          />
         </HStack>
         <Grid templateColumns="repeat(3, 1fr)" gap="7">
           <Button borderRadius={5} variant={"outline"}>
@@ -56,29 +53,7 @@ export const Filters = () => {
       </VStack>
       <Separator />
       <VStack marginBlock={5} alignItems={"flex-start"}>
-        <Heading size={"sm"}>{t("filters.seatsFilter")}</Heading>
-        <HStack w={"full"} justifyContent={"space-between"}>
-          <RatingGroup.Root
-            count={5}
-            defaultValue={selectedSeatNumber}
-            colorPalette="blue"
-            onValueChange={({ value }) => setSelectedSeatNumber(value)}
-          >
-            <RatingGroup.HiddenInput />
-            <RatingGroup.Control>
-              <Grid templateColumns="repeat(5, 1fr)" gapX={10}>
-                {Array.from({ length: 5 }).map((_, index) => (
-                  <RatingGroup.Item key={index} index={index + 1}>
-                    <RatingGroup.ItemIndicator icon={<LuUsers />} />
-                  </RatingGroup.Item>
-                ))}
-              </Grid>
-            </RatingGroup.Control>
-          </RatingGroup.Root>
-          <Text textStyle={"md"} fontWeight={"medium"} color={"blue.solid"}>
-            {selectedSeatNumber} {t("filters.seats")}
-          </Text>
-        </HStack>
+        <SeatSelector title={t("filters.seatsFilter")} />
       </VStack>
       <Separator />
       <Slider.Root

@@ -12,10 +12,16 @@ import logoIc from "@/assets/logoIc.svg";
 import { HomeSearch } from "@/components/home/HomeSearch";
 import { Empty, Utilities } from "@/components/common";
 import { LuSquareDashedMousePointer } from "react-icons/lu";
+import { useContext } from "react";
+import { RideContext } from "@/context/ride-context";
+import { RideItem } from "./RideItem";
 
 export const Home = () => {
   const { t } = useTranslation();
   const mainBlue = "blue.600";
+
+  const rideContext = useContext(RideContext);
+  const rides = rideContext?.rides || [];
 
   const emptyStateProps = {
     icon: <LuSquareDashedMousePointer />,
@@ -53,9 +59,20 @@ export const Home = () => {
             </Stack>
           </Container>
         </Box>
-        <Container maxW="container.md" position="relative" mt={-16} gap={20}>
+        <Container maxW="container.md" position="relative" mt={-20}>
           <HomeSearch />
-          <Empty {...emptyStateProps} />
+          {rides.length === 0 ? (
+            <Empty {...emptyStateProps} />
+          ) : (
+            <>
+              <Heading mb={5} size={"md"}>
+                Available Rides
+              </Heading>
+              {rides.map((ride) => (
+                <RideItem ride={ride} key={ride.id} />
+              ))}
+            </>
+          )}
         </Container>
       </Box>
     </>

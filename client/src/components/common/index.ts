@@ -2,3 +2,8 @@ export * from "./BottomTabs";
 export * from "./DateCalendar";
 export * from "./Utilities";
 export * from "./Empty";
+export * from "./Header";
+export * from "./SeatSelector";
+export * from "./UploadFile";
+export * from "./LocationComboBox";
+export * from "./RideDetailsPage";

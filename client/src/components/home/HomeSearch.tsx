@@ -1,12 +1,20 @@
-import { Button, Circle, Input, InputGroup, Stack } from "@chakra-ui/react";
+import { Button, Circle, Stack } from "@chakra-ui/react";
 import { LuSearch } from "react-icons/lu";
 import { useTranslation } from "react-i18next";
-import { DateCalendar } from "../common";
+import { DateCalendar, LocationComboBox } from "../common";
+import { useState } from "react";
+import type { LocationOption } from "@/types/location";
 
 export const HomeSearch = () => {
   const { t } = useTranslation();
-  const originDot = "blue.500";
-  const destDot = "orange.500";
+
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+
+  // optional: if you want coordinates later
+  const [fromLocation, setFromLocation] = useState<LocationOption | null>(null);
+  const [toLocation, setToLocation] = useState<LocationOption | null>(null);
+
   return (
     <Stack
       bg="bg.panel"
@@ -15,24 +23,27 @@ export const HomeSearch = () => {
       shadow="lg"
       gap={6}
       align="stretch"
+      mb={5}
     >
-      <InputGroup
-        startElement={<Circle size={3} bg={originDot} ml={1} />}
-        colorPalette={"blue"}
-      >
-        <Input
-          placeholder={t("homePage.placeholders.from")}
-          size={"md"}
-          p={6}
-        />
-      </InputGroup>
+      <LocationComboBox
+        placeholder={t("homePage.placeholders.from")}
+        value={from}
+        startElement={<Circle size={3} bg="blue.500" ml={1} />}
+        onSelect={(loc) => {
+          setFrom(loc.name);
+          setFromLocation(loc);
+        }}
+      />
 
-      <InputGroup
-        startElement={<Circle size={3} bg={destDot} ml={1} />}
-        colorPalette={"blue"}
-      >
-        <Input placeholder={t("homePage.placeholders.to")} size={"md"} p={6} />
-      </InputGroup>
+      <LocationComboBox
+        placeholder={t("homePage.placeholders.to")}
+        value={to}
+        startElement={<Circle size={3} bg="orange.500" ml={1} />}
+        onSelect={(loc) => {
+          setTo(loc.name);
+          setToLocation(loc);
+        }}
+      />
 
       <DateCalendar />
 
@@ -43,6 +54,7 @@ export const HomeSearch = () => {
         width="full"
         justifyContent="center"
         gap={3}
+        onClick={() => console.log("location", fromLocation, toLocation)}
       >
         <LuSearch size={18} />
         {t("homePage.searchBtn")}

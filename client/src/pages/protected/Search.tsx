@@ -1,54 +1,61 @@
-import { Empty, Utilities } from "@/components/common";
+import { Empty, Header, LocationComboBox } from "@/components/common";
 import { FilterDrawer } from "@/components/overlays";
+import { RideContext, type Ride } from "@/context/ride-context";
 import {
   Container,
-  Field,
-  Flex,
   Heading,
   HStack,
   IconButton,
-  Input,
-  InputGroup,
+  Text,
   VStack,
 } from "@chakra-ui/react";
-import { useState } from "react";
+import { useContext, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  LuSearch,
-  LuSettings2,
-  LuSquareDashedMousePointer,
-} from "react-icons/lu";
+import { LuSearch, LuSettings2 } from "react-icons/lu";
+import { RideItem } from "./RideItem";
 
 export const Search = () => {
   const { t } = useTranslation();
+  const rideContext = useContext(RideContext);
+  const allRides = rideContext?.rides ?? [];
 
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
   const [showFilter, setShowFilter] = useState(false);
 
-  const emptyStateProps = {
-    icon: <LuSquareDashedMousePointer />,
-    title: t("homePage.empty.title"),
-    desc: t("homePage.empty.description"),
-  };
+  const filtered: Ride[] = allRides.filter((ride) => {
+    const matchFrom =
+      from.trim() === "" ||
+      ride.origin.toLowerCase().includes(from.toLowerCase());
+    const matchTo =
+      to.trim() === "" ||
+      ride.destination.toLowerCase().includes(to.toLowerCase());
+    return matchFrom && matchTo;
+  });
 
   return (
-    <Container position={"relative"} direction={"column"} marginTop={5}>
+    <Container direction="column">
       <VStack>
-        <HStack w={"full"} justifyContent={"space-between"}>
+        <Header>
           <Heading>{t("searchPage.header")}</Heading>
-          <Utilities />
-        </HStack>
-        <HStack>
-          <Field.Root colorPalette={"blue"}>
-            <InputGroup startElement={<LuSearch />}>
-              <Input placeholder={t("homePage.placeholders.from")} />
-            </InputGroup>
-          </Field.Root>
-          <Field.Root colorPalette={"blue"}>
-            <InputGroup startElement={<LuSearch />}>
-              <Input placeholder={t("homePage.placeholders.to")} />
-            </InputGroup>
-          </Field.Root>
-          <IconButton variant={"outline"} onClick={() => setShowFilter(true)}>
+        </Header>
+        <HStack w="full">
+          <LocationComboBox
+            placeholder="From"
+            value={from}
+            onSelect={(loc) => {
+              setFrom(loc.name);
+            }}
+          />
+
+          <LocationComboBox
+            placeholder="To"
+            value={to}
+            onSelect={(loc) => {
+              setTo(loc.name);
+            }}
+          />
+          <IconButton variant="outline" onClick={() => setShowFilter(true)}>
             <LuSettings2 />
           </IconButton>
           <FilterDrawer
@@ -57,9 +64,25 @@ export const Search = () => {
           />
         </HStack>
       </VStack>
-      <Flex>
-        <Empty {...emptyStateProps} />
-      </Flex>
+
+      <VStack gap={3} mt={4}>
+        {filtered.length > 0 ? (
+          <>
+            <Text textStyle={"sm"} color={"fg.subtle"} alignSelf={"start"}>
+              {filtered.length} rides found
+            </Text>
+            {filtered.map((rideItem) => (
+              <RideItem key={rideItem.id} ride={rideItem} />
+            ))}
+          </>
+        ) : (
+          <Empty
+            icon={<LuSearch />}
+            title="No rides found"
+            desc="Try different origin or destination"
+          />
+        )}
+      </VStack>
     </Container>
   );
 };

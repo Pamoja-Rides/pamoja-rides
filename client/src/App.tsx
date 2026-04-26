@@ -8,7 +8,9 @@ import {
   VerifyUser,
 } from "./pages/auth";
 import { Signup } from "./pages/auth/Signup";
-import { Home, Search } from "./pages/protected";
+import { Home, PostRide, ProfilePage, Rides, Search } from "./pages/protected";
+import { RideProvider } from "./context/RideContextProvider";
+import { RideDetailsPage } from "./components/common";
 
 const App = () => {
   return (
@@ -21,11 +23,19 @@ const App = () => {
           <Route path="/verify" element={<VerifyUser />} />
         </Route>
       </Route>
-      <Route element={<ProtectedRoutes />}>
+      <Route
+        element={
+          <RideProvider>
+            <ProtectedRoutes />
+          </RideProvider>
+        }
+      >
         <Route path="/" element={<Home />} />
         <Route path={"/search"} element={<Search />} />
-        <Route path={"/post"} element={<h1>Post Page</h1>} />
-        <Route path={"/rides"} element={<h1>My rides Page</h1>} />
+        <Route path={"/post"} element={<PostRide />} />
+        <Route path={"/rides"} element={<Rides />} />
+        <Route path={"/profile"} element={<ProfilePage />} />
+        <Route path="/rides/:rideId" element={<RideDetailsPage />} />
       </Route>
     </Routes>
   );

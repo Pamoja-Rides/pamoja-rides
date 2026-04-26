@@ -16,6 +16,9 @@ requests = "*"
 africastalking = "*"
 gunicorn = "*"
 resend = "*"
+channels = "*"
+daphne = "*"
+channels-redis = "*"
 
 [dev-packages]
 
