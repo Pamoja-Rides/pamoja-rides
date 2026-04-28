@@ -4,13 +4,7 @@ import type { ReactElement } from "react";
 
 export const Header = ({ children }: { children: ReactElement }) => {
   return (
-    <Container
-      marginBlock={10}
-      position={"sticky"}
-      top={10}
-      bg={"bg"}
-      zIndex={1000}
-    >
+    <Container marginBlock={10} bg={"bg"} zIndex={1000}>
       <HStack w={"full"} justifyContent={"space-between"}>
         {children}
         <Utilities />

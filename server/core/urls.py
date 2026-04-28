@@ -17,12 +17,12 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 
-from rides.views import LocationDetailView, LocationSearchView, MyBookingsView
+from rides.views import LocationDetailView, LocationSearchView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/users/', include('users.urls')),
+    path('api/rides/', include('rides.urls')),
     path('api/locations/', LocationSearchView.as_view()),
-    path('api/location-details/', LocationDetailView.as_view()),
-    path('api/rides/my-bookings/', MyBookingsView.as_view()),
+    path('api/location-details/', LocationDetailView.as_view())
 ]

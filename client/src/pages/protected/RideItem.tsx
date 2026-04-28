@@ -1,5 +1,6 @@
 import {
   Avatar,
+  Badge,
   Box,
   Button,
   Flex,
@@ -10,20 +11,27 @@ import {
   Text,
   VStack,
 } from "@chakra-ui/react";
+import React from "react";
 import { LuChevronRight, LuClock, LuPhone, LuUsers } from "react-icons/lu";
 import { PiChatsCircle } from "react-icons/pi";
 import type { Ride } from "@/context/ride-context";
-import { useRide } from "@/context/ride-context"; // ✅ NEW
+import { useRide } from "@/context/ride-context";
 import { useNavigate } from "react-router";
 
 interface RideCardProps {
   ride: Ride;
-  onBook?: (ride: Ride) => void;
+  /** When true, renders "Posted by you" badge — used in the Posted tab */
+  isOwnRide?: boolean;
+  onClick?: () => void;
 }
 
-export const RideItem = ({ ride, onBook }: RideCardProps) => {
-  const { isRideBooked } = useRide(); // ✅ NEW
-  const isBooked = isRideBooked(ride.id); // ✅ NEW
+export const RideItem = ({
+  ride,
+  isOwnRide = false,
+  onClick,
+}: RideCardProps) => {
+  const { isRideBooked } = useRide();
+  const isBooked = isRideBooked(ride.id);
   const navigate = useNavigate();
 
   const initials =
@@ -40,17 +48,16 @@ export const RideItem = ({ ride, onBook }: RideCardProps) => {
     hour12: false,
   });
 
-  const handleWhatsApp = () => {
+  const handleWhatsApp = (e: React.MouseEvent) => {
+    e.stopPropagation();
     const phone = ride.driver.phone_number?.replace(/\D/g, "");
-    if (phone) {
-      window.open(`https://wa.me/${phone}`, "_blank");
-    }
+    if (phone) window.open(`https://wa.me/${phone}`, "_blank");
   };
 
-  const handleCall = () => {
-    if (ride.driver.phone_number) {
+  const handleCall = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (ride.driver.phone_number)
       window.location.href = `tel:${ride.driver.phone_number}`;
-    }
   };
 
   return (
@@ -62,27 +69,48 @@ export const RideItem = ({ ride, onBook }: RideCardProps) => {
       borderWidth={0.5}
       overflow="hidden"
       w="full"
-      cursor={onBook ? "pointer" : "default"}
+      cursor="pointer"
       transition="all 0.15s ease"
-      _hover={onBook ? { shadow: "md", transform: "translateY(-1px)" } : {}}
+      _hover={{ shadow: "md", transform: "translateY(-1px)" }}
       mb={5}
+      onClick={onClick}
     >
-      {/* ── Top section */}
+      {/* Route */}
       <Flex px={5} pt={5} pb={4} justify="space-between" align="stretch">
-        <Flex gap={3} flex={1} align="stretch">
+        {/* <Flex gap={3} flex={1} align="stretch">
           <VStack gap={0} py="2px" align="center" flexShrink={0}>
             <Box w="10px" h="10px" bg="blue.500" borderRadius="full" />
+            {ride.stops?.length > 0
+              ? ride.stops.map((stop) => (
+                  <React.Fragment key={stop.id}>
+                    <Box
+                      w="1.5px"
+                      bg={{ _light: "gray.200", _dark: "gray.700" }}
+                      minH="20px"
+                      my="3px"
+                    />
+                    <Box
+                      w="7px"
+                      h="7px"
+                      borderRadius="full"
+                      borderWidth={1.5}
+                      borderColor="blue.300"
+                      bg="bg.panel"
+                    />
+                  </React.Fragment>
+                ))
+              : null}
             <Box
-              flex={1}
               w="1.5px"
               bg={{ _light: "gray.200", _dark: "gray.700" }}
-              my="4px"
-              minH="32px"
+              flex={1}
+              my="3px"
+              minH="20px"
             />
             <Box w="11px" h="11px" bg="orange.500" borderRadius="full" />
           </VStack>
 
-          <VStack align="start" gap={4} flex={1}>
+          <VStack align="start" gap={3} flex={1}>
             <Box>
               <Text fontSize="xs" fontWeight="500" color="gray.400" mb="2px">
                 From
@@ -91,19 +119,77 @@ export const RideItem = ({ ride, onBook }: RideCardProps) => {
                 {ride.origin}
               </Text>
             </Box>
-
+            {ride.stops?.map((stop) => (
+              <Box key={stop.id}>
+                <Text fontSize="xs" fontWeight="500" color="blue.400" mb="2px">
+                  Stop
+                </Text>
+                <Text fontSize="sm" fontWeight="600" color="fg.muted">
+                  {stop.name}
+                </Text>
+              </Box>
+            ))}
             <Box>
               <Text fontSize="xs" fontWeight="500" color="gray.400" mb="2px">
                 To
               </Text>
-              <Flex align="center" gap={1}>
-                <Text fontSize="md" fontWeight="700">
-                  {ride.destination}
+              <Text fontSize="md" fontWeight="700">
+                {ride.destination}
+              </Text>
+            </Box>
+          </VStack>
+        </Flex> */}
+
+        <Flex gap="4" align="stretch">
+          <VStack gap="0" align="center" py="1.5">
+            <Box w="10px" h="10px" bg="blue.500" borderRadius="full" />
+            <Box flex="1" w="1.5px" bg="bg.emphasized" my="1" minH="20px" />
+            {ride.stops.map((stop) => (
+              <React.Fragment key={stop.id}>
+                <Box
+                  w="8px"
+                  h="8px"
+                  borderRadius="full"
+                  borderWidth={1}
+                  borderColor="fg"
+                />
+                <Box flex="1" w="1.5px" bg="bg.emphasized" my="1" minH="20px" />
+              </React.Fragment>
+            ))}
+            <Box w="12px" h="12px" bg="#FF5722" borderRadius="full" />
+          </VStack>
+
+          <VStack align="start" gap="4" flex={1}>
+            <Box>
+              <Text textAlign="start" fontSize="xs" color="fg.subtle">
+                From
+              </Text>
+              <Text textAlign="start" fontWeight="bold" textStyle="sm">
+                {ride.origin}
+              </Text>
+            </Box>
+            {ride.stops.map((stop) => (
+              <Box key={stop.id}>
+                <Text textAlign="start" fontSize="xs" color="fg.subtle">
+                  Stop
                 </Text>
-                <Icon color="gray.400" boxSize={4}>
-                  <LuChevronRight />
-                </Icon>
-              </Flex>
+                <Text
+                  textAlign="start"
+                  fontWeight="semibold"
+                  textStyle="sm"
+                  color="fg.muted"
+                >
+                  {stop.name}
+                </Text>
+              </Box>
+            ))}
+            <Box>
+              <Text textAlign="start" fontSize="xs" color="whiteAlpha.700">
+                To
+              </Text>
+              <Text textAlign="start" fontWeight="bold" textStyle="sm">
+                {ride.destination}
+              </Text>
             </Box>
           </VStack>
         </Flex>
@@ -120,7 +206,7 @@ export const RideItem = ({ ride, onBook }: RideCardProps) => {
 
       <Separator />
 
-      {/* ── Middle */}
+      {/* Date + seats */}
       <HStack px={5} py={3} gap={5}>
         <HStack gap={1.5} color="gray.500">
           <Icon boxSize={4}>
@@ -130,7 +216,6 @@ export const RideItem = ({ ride, onBook }: RideCardProps) => {
             {dateLabel} • {timeLabel}
           </Text>
         </HStack>
-
         <HStack gap={1.5} color="gray.500">
           <Icon boxSize={4}>
             <LuUsers />
@@ -143,72 +228,83 @@ export const RideItem = ({ ride, onBook }: RideCardProps) => {
 
       <Separator />
 
-      {/* ── Bottom: CONDITIONAL ONLY */}
-      {isBooked ? (
+      {/* Bottom section */}
+      {isOwnRide ? (
+        // Posted by the logged-in user
+        <Flex px={5} py={4} align="center" justify="space-between">
+          <Badge
+            colorPalette="blue"
+            variant="subtle"
+            borderRadius="full"
+            px={3}
+            py={1}
+          >
+            Posted by you
+          </Badge>
+          <Button
+            variant="plain"
+            colorPalette="blue"
+            size="xs"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/rides/${ride.id}`);
+            }}
+          >
+            Manage <LuChevronRight />
+          </Button>
+        </Flex>
+      ) : isBooked ? (
+        // Booked — show driver contact
         <Flex px={5} py={4} align="center" gap={3}>
           <Avatar.Root size="lg" bg="blue.600">
             <Avatar.Fallback color="white" fontWeight="700" fontSize="md">
               {initials}
             </Avatar.Fallback>
           </Avatar.Root>
-
           <Text fontWeight="700" fontSize="md" flex={1}>
             {ride.driver.first_name} {ride.driver.last_name}
           </Text>
-
           <HStack gap={2}>
             <IconButton
               aria-label="Call driver"
               size="sm"
               borderRadius="full"
-              bg="blue.50"
-              color="blue.600"
-              variant="ghost"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleCall();
-              }}
+              colorPalette={"blue"}
+              variant="surface"
+              onClick={handleCall}
             >
               <LuPhone />
             </IconButton>
-
             <IconButton
               aria-label="WhatsApp driver"
               size="sm"
               borderRadius="full"
-              bg="blue.50"
-              color="blue.600"
-              variant="ghost"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleWhatsApp();
-              }}
+              colorPalette={"blue"}
+              variant="surface"
+              onClick={handleWhatsApp}
             >
               <PiChatsCircle />
             </IconButton>
           </HStack>
         </Flex>
       ) : (
-        <Flex
-          px={5}
-          py={4}
-          align="center"
-          columnGap={5}
-          justifyContent={"space-between"}
-        >
+        // Not booked yet — show avatar + View More
+        <Flex px={5} py={4} align="center" justify="space-between">
           <Avatar.Root size="lg" bg="blue.600">
             <Avatar.Fallback color="white" fontWeight="700" fontSize="md">
               {initials}
             </Avatar.Fallback>
           </Avatar.Root>
           <Button
-            variant={"plain"}
-            colorPalette={"blue"}
-            size={"xs"}
-            onClick={() => navigate(`/rides/${ride.id}`)}
+            variant="plain"
+            colorPalette="blue"
+            size="xs"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/rides/${ride.id}`);
+            }}
           >
-            View More
-            <LuChevronRight />
+            View More <LuChevronRight />
           </Button>
         </Flex>
       )}

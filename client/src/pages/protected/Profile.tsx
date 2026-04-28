@@ -255,7 +255,7 @@ export const ProfilePage = () => {
                   </Badge>
                 )}
                 <Badge
-                  colorPalette={profile?.is_driver ? "purple" : "blue"}
+                  colorPalette={profile?.is_driver ? "purple" : "blue.500"}
                   variant="solid"
                   borderRadius="full"
                   px={3}
@@ -316,7 +316,7 @@ export const ProfilePage = () => {
                   </Icon>
                   <Text
                     fontWeight="800"
-                    fontSize={stat.small ? "sm" : "2xl"}
+                    fontSize={stat.small ? "lg" : "2xl"}
                     color="blue.600"
                     lineHeight="1.1"
                   >

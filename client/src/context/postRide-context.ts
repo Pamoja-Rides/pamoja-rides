@@ -1,17 +1,22 @@
 import React, { createContext } from "react";
 
+export interface StopData {
+  name: string;
+  lat: number | null;
+  lng: number | null;
+}
+
 export interface PostRideData {
   origin: string;
+  origin_lat: number | null;
+  origin_lng: number | null;
+  stops: StopData[];
   destination: string;
+  destination_lat: number | null;
+  destination_lng: number | null;
   pickup_point: string;
-  origin_lat?: number;
-  origin_lng?: number;
-
-  destination_lat?: number;
-  destination_lng?: number;
-
-  pickup_lat?: number;
-  pickup_lng?: number;
+  pickup_lat: number | null;
+  pickup_lng: number | null;
   departure_datetime: string;
   car_model: string;
   license_plate: string;

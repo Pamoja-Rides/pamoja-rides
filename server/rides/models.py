@@ -1,3 +1,4 @@
+import decimal
 from email.policy import default
 import uuid
 from django.db import models
@@ -20,8 +21,14 @@ class Ride(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     driver = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='rides_driven')
     origin = models.CharField(max_length=255)
+    origin_lat = models.DecimalField(max_digits=10, decimal_places=5, null=True, blank=True)
+    origin_lng = models.DecimalField(max_digits=10, decimal_places=5, null=True, blank=True)
     destination = models.CharField(max_length=255)
+    destination_lat = models.DecimalField(max_digits=10, decimal_places=5, null=True, blank=True)
+    destination_lng = models.DecimalField(max_digits=10, decimal_places=5, null=True, blank=True)
     pickup_point = models.CharField(max_length=255)
+    pickup_lat = models.DecimalField(max_digits=10, decimal_places=5, null=True, blank=True)
+    pickup_lng = models.DecimalField(max_digits=10, decimal_places=5, null=True, blank=True)
     departure_datetime = models.DateTimeField()
     car_model = models.CharField(max_length=100)
     license_plate = models.CharField(max_length=20)
@@ -58,3 +65,19 @@ class Location(models.Model):
     
     class Meta:
         db_table = 'locations'
+
+class RideStop(models.Model):
+    """An intermediate stop along a ride's route, ordered between origin and destination."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    ride = models.ForeignKey(Ride, on_delete=models.CASCADE, related_name='stops')
+    name = models.CharField(max_length=255)
+    lat = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    lng = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    order = models.PositiveIntegerField()
+
+    class Meta:
+        db_table = 'ride_stops'
+        ordering = ['order']
+
+    def __str__(self):
+        return f"{self.name} (stop {self.order} on ride {self.ride_id})"

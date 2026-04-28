@@ -56,7 +56,6 @@ const steps = [
   },
 ];
 
-// Wrap the inner component so it can access PostRideContext
 export const PostRide = () => (
   <PostRideProvider>
     <PostRideInner />
@@ -73,47 +72,57 @@ const PostRideInner = () => {
   } | null>(null);
   const postRideContext = useContext(PostRideContext);
   const rideContext = useContext(RideContext);
-
   const wsError = rideContext?.wsError;
 
   const handleSubmit = () => {
     if (!postRideContext || !rideContext) return;
     const { formData } = postRideContext;
 
-    console.info("formData", postRideContext?.formData);
-
-    // Spread only the fields the backend model actually expects
     rideContext.sendWSMessage("post_ride", {
       origin: formData.origin,
+      origin_lat: formData.origin_lat ?? null,
+      origin_lng: formData.origin_lng ?? null,
+      stops: formData.stops
+        .filter((s) => s.name.trim() !== "")
+        .map((s, index) => ({
+          name: s.name,
+          lat: s.lat ?? null,
+          lng: s.lng ?? null,
+          order: index,
+        })),
       destination: formData.destination,
+      destination_lat: formData.destination_lat ?? null,
+      destination_lng: formData.destination_lng ?? null,
       pickup_point: formData.pickup_point,
+      pickup_lat: formData.pickup_lat ?? null,
+      pickup_lng: formData.pickup_lng ?? null,
       departure_datetime: formData.departure_datetime,
       car_model: formData.car_model,
       license_plate: formData.license_plate,
       available_seats: formData.available_seats,
+      price_per_seat: formData.price_per_seat,
       nid_number: formData.nid_number,
       license_number: formData.license_number,
       full_name_on_id: formData.full_name_on_id,
       nid_image_url: formData.nid_image_url,
       license_image_url: formData.license_image_url,
-      price_per_seat: formData.price_per_seat,
     });
+
+    navigate("/rides");
   };
 
   useEffect(() => {
-    if (error) {
-      setTimeout(() => setError(null), 3000);
-    }
+    if (error) setTimeout(() => setError(null), 3000);
   }, [error]);
 
   return (
-    <Flex direction="column" h="100vh">
+    <Flex direction="column" minH="10vh">
       <Header>
         <Heading>Post your ride</Heading>
       </Header>
 
       {wsError && (
-        <Alert.Root status="error" variant="surface" mx={5} mb={2} w={"fit"}>
+        <Alert.Root status="error" variant="surface" mx={5} mb={2} w="fit">
           <Alert.Indicator />
           <Alert.Title flex={1}>{wsError}</Alert.Title>
           <Button
@@ -148,7 +157,7 @@ const PostRideInner = () => {
           }
         >
           <Steps.List>
-            {steps.map((step, index) => (
+            {steps.map((s, index) => (
               <Steps.Item key={index} index={index}>
                 <Steps.Indicator
                   color={error?.details?.step === index ? "fg.error" : ""}
@@ -156,14 +165,14 @@ const PostRideInner = () => {
                   borderWidth={1}
                   borderColor={error?.details?.step === index ? "red.800" : ""}
                 >
-                  <Steps.Status incomplete={step.icon} complete={<LuCheck />} />
+                  <Steps.Status incomplete={s.icon} complete={<LuCheck />} />
                 </Steps.Indicator>
                 <Steps.Separator />
               </Steps.Item>
             ))}
           </Steps.List>
 
-          {steps.map((step, index) => (
+          {steps.map((s, index) => (
             <Steps.Content key={index} index={index} minH="30vh">
               {error && (
                 <Alert.Root
@@ -177,7 +186,7 @@ const PostRideInner = () => {
                   <Alert.Title>{error.message}</Alert.Title>
                 </Alert.Root>
               )}
-              {step.content}
+              {s.content}
             </Steps.Content>
           ))}
 
@@ -185,23 +194,20 @@ const PostRideInner = () => {
             <PostRideComplete />
           </Steps.CompletedContent>
 
-          <ButtonGroup size="sm" variant="outline" mt={"10vh"}>
+          <ButtonGroup size="sm" variant="outline" mt="5vh" mb={5}>
             <Steps.PrevTrigger asChild>
               <Button>Prev</Button>
             </Steps.PrevTrigger>
-
             {step < steps.length - 1 && (
               <Steps.NextTrigger asChild>
-                <Button variant={"solid"}>Next</Button>
+                <Button variant="solid">Next</Button>
               </Steps.NextTrigger>
             )}
-
             {step === steps.length - 1 && (
               <Button variant="solid" onClick={handleSubmit}>
                 Submit
               </Button>
             )}
-
             {step === steps.length && (
               <Button variant="solid" onClick={() => navigate("/rides")}>
                 See my rides
