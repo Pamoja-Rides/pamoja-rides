@@ -1,6 +1,5 @@
-import { PostRideContext } from "@/context/postRide-context";
+import { PostRideContext, type StopData } from "@/context/postRide-context";
 import {
-  Box,
   Button,
   Field,
   Flex,
@@ -13,39 +12,65 @@ import {
 import { useContext } from "react";
 import { LuMapPin, LuPlus, LuX } from "react-icons/lu";
 import { LocationComboBox } from "../common";
-import type { LocationOption } from "@/types/location";
+import type { LocationOption, LocationPlace } from "@/types/location";
+import axios from "axios";
+import { baseUrl } from "@/main";
+import { fixCoord } from "@/utils/fixCoords";
 
 export const RouteDetails = () => {
   const context = useContext(PostRideContext);
   if (!context) return null;
   const { formData, setFormData } = context;
 
-  const handleOriginSelect = (loc: LocationOption) => {
-    setFormData((prev) => ({
-      ...prev,
-      origin: loc.name,
-      origin_lat: loc.latitude,
-      origin_lng: loc.longitude,
-    }));
+  const handleGetCoords = async (
+    loc: LocationPlace,
+    newFormDataKey: string,
+  ) => {
+    try {
+      // Fetch coordinates using the id (place_id)
+      const response = await axios.get(
+        `${baseUrl}/location-details/?place_id=${loc.id}`,
+      );
+      const { latitude, longitude } = response.data;
+
+      const keyOptions: Record<
+        string,
+        Record<string, number | string | StopData>
+      > = {
+        origin: {
+          origin: loc.name,
+          origin_lat: fixCoord(latitude),
+          origin_lng: fixCoord(longitude),
+        },
+        destination: {
+          destination: loc.name,
+          destination_lat: fixCoord(latitude),
+          destination_lng: fixCoord(longitude),
+        },
+        pickUp: {
+          pickup_point: loc.name,
+          pickup_lat: fixCoord(latitude),
+          pickup_lng: fixCoord(longitude),
+        },
+      };
+
+      setFormData({
+        ...formData,
+        ...keyOptions[newFormDataKey],
+      });
+    } catch (error) {
+      console.error("Failed to fetch location details:", error);
+    }
   };
 
-  const handleDestinationSelect = (loc: LocationOption) => {
-    setFormData((prev) => ({
-      ...prev,
-      destination: loc.name,
-      destination_lat: loc.latitude,
-      destination_lng: loc.longitude,
-    }));
-  };
+  const handleOriginSelect = (loc: LocationPlace) =>
+    handleGetCoords(loc, "origin");
 
-  const handlePickupSelect = (loc: LocationOption) => {
-    setFormData((prev) => ({
-      ...prev,
-      pickup_point: loc.name,
-      pickup_lat: loc.latitude,
-      pickup_lng: loc.longitude,
-    }));
-  };
+  const handleDestinationSelect = (loc: LocationPlace) =>
+    handleGetCoords(loc, "destination");
+
+  const handlePickupSelect = (loc: LocationPlace) =>
+    handleGetCoords(loc, "pickUp");
 
   const addStop = () => {
     setFormData((prev) => ({
@@ -89,31 +114,12 @@ export const RouteDetails = () => {
         w="full"
         position="relative"
       >
-        {/* Visual route line */}
-        {/* <Box
-          position="absolute"
-          left="32px"
-          top="52px"
-          bottom="52px"
-          w="2px"
-          bg="blue.100"
-          zIndex={0}
-        /> */}
-
         {/* Origin */}
         <Field.Root required>
           <Field.Label>
             From <Field.RequiredIndicator />
           </Field.Label>
           <Flex align="center" gap={3} w="full">
-            {/* <Box
-              w="12px"
-              h="12px"
-              borderRadius="full"
-              bg="blue.500"
-              flexShrink={0}
-              zIndex={1}
-            /> */}
             <LocationComboBox
               placeholder="Where from?"
               value={formData.origin}
@@ -127,14 +133,6 @@ export const RouteDetails = () => {
           <Field.Root key={index}>
             <Field.Label>Stop {index + 1}</Field.Label>
             <Flex align="center" gap={3} w="full">
-              {/* <Box
-                w="10px"
-                h="10px"
-                borderRadius="full"
-                bg="blue.300"
-                flexShrink={0}
-                zIndex={1}
-              /> */}
               <LocationComboBox
                 placeholder={`Stop ${index + 1}`}
                 value={stop.name}

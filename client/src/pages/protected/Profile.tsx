@@ -8,6 +8,7 @@ import {
   DataList,
   Drawer,
   Field,
+  FileUpload,
   Flex,
   Grid,
   Heading,
@@ -23,15 +24,17 @@ import {
   Text,
   VStack,
   createListCollection,
+  defineStyle,
 } from "@chakra-ui/react";
 import axios from "axios";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 import {
   LuBadgeCheck,
   LuCalendar,
   LuCar,
+  LuCamera,
   LuCircleAlert,
   LuIdCard,
   LuLanguages,
@@ -45,6 +48,9 @@ import {
 } from "react-icons/lu";
 import { baseUrl } from "@/main";
 import { toaster } from "@/components/ui/toaster";
+
+const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
 
 interface DriverProfile {
   nid_number: string;
@@ -67,6 +73,7 @@ interface UserProfile {
   member_since: string;
   rides_posted: number;
   rides_booked: number;
+  avatar_url: string | null;
   driver_profile: DriverProfile | null;
 }
 
@@ -84,6 +91,13 @@ const languageCollection = createListCollection({
   ],
 });
 
+const ringCss = defineStyle({
+  outlineWidth: "2px",
+  outlineColor: "colorPalette.500",
+  outlineOffset: "2px",
+  outlineStyle: "solid",
+});
+
 export const ProfilePage = () => {
   const navigate = useNavigate();
   const { i18n } = useTranslation();
@@ -92,12 +106,14 @@ export const ProfilePage = () => {
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
   const [editData, setEditData] = useState({
     first_name: "",
     last_name: "",
     email: "",
     phone_number: "",
     preferred_language: "en",
+    avatar_url: "",
   });
 
   const authHeader = () => ({
@@ -117,6 +133,7 @@ export const ProfilePage = () => {
         email: res.data.email ?? "",
         phone_number: res.data.phone_number ?? "",
         preferred_language: res.data.preferred_language,
+        avatar_url: res.data.avatar_url ?? "",
       });
     } catch {
       toaster.create({ title: "Failed to load profile", type: "error" });
@@ -128,6 +145,41 @@ export const ProfilePage = () => {
   useEffect(() => {
     fetchProfile();
   }, []);
+
+  const uploadAvatarToCloudinary = async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+    formData.append("folder", "pamoja-rides/avatars");
+
+    const res = await fetch(
+      `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
+      { method: "POST", body: formData },
+    );
+    const data = await res.json();
+    if (!data.secure_url) throw new Error("Upload failed");
+    return data.secure_url;
+  };
+
+  const handleAvatarChange = async (file: File) => {
+    setAvatarUploading(true);
+    try {
+      const url = await uploadAvatarToCloudinary(file);
+      // Save immediately to backend
+      await axios.patch(
+        `${baseUrl}/users/me/update/`,
+        { avatar_url: url },
+        authHeader(),
+      );
+      setProfile((prev) => (prev ? { ...prev, avatar_url: url } : prev));
+      setEditData((prev) => ({ ...prev, avatar_url: url }));
+      toaster.create({ title: "Photo updated", type: "success" });
+    } catch {
+      toaster.create({ title: "Photo upload failed", type: "error" });
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -165,8 +217,8 @@ export const ProfilePage = () => {
     : "";
 
   return (
-    <Box h="90vh" bg="bg">
-      {/* ── Hero ─────────────────────────────────────────────── */}
+    <Box minH="100vh" bg="bg">
+      {/* Hero */}
       <Box
         bgGradient="to-br"
         gradientFrom="blue.700"
@@ -177,7 +229,6 @@ export const ProfilePage = () => {
         position="relative"
         overflow="hidden"
       >
-        {/* Decorative circles */}
         <Box
           position="absolute"
           top="-40px"
@@ -208,22 +259,67 @@ export const ProfilePage = () => {
             _hover={{ bg: "whiteAlpha.200" }}
             onClick={() => setEditOpen(true)}
           >
-            <LuPencil />
-            Edit
+            <LuPencil /> Edit
           </Button>
         </Flex>
 
-        {/* Avatar + identity */}
         <Flex direction="column" align="center" gap={3} position="relative">
-          {loading ? (
-            <Skeleton boxSize="80px" borderRadius="full" />
-          ) : (
-            <Avatar.Root size="2xl" bg="white">
-              <Avatar.Fallback color="blue.600" fontWeight="800" fontSize="2xl">
-                {initials}
-              </Avatar.Fallback>
-            </Avatar.Root>
-          )}
+          {/* Avatar with upload overlay */}
+          <Box position="relative">
+            {loading ? (
+              <Skeleton boxSize="80px" borderRadius="full" />
+            ) : (
+              <FileUpload.Root
+                accept={["image/jpeg", "image/png", "image/webp"]}
+                maxFiles={1}
+                onFileAccept={(details) => handleAvatarChange(details.files[0])}
+              >
+                <FileUpload.HiddenInput />
+                <FileUpload.Trigger asChild>
+                  <Box position="relative" cursor="pointer">
+                    <Avatar.Root
+                      size="2xl"
+                      bg="white"
+                      css={ringCss}
+                      colorPalette={"blue"}
+                    >
+                      {profile?.avatar_url ? (
+                        <Avatar.Image src={profile.avatar_url} />
+                      ) : (
+                        <Avatar.Fallback
+                          color="blue.600"
+                          fontWeight="800"
+                          fontSize="2xl"
+                        >
+                          {initials}
+                        </Avatar.Fallback>
+                      )}
+                    </Avatar.Root>
+                    <Flex
+                      position="absolute"
+                      bottom={0}
+                      right={0}
+                      w="26px"
+                      h="26px"
+                      borderRadius="full"
+                      bg="white"
+                      align="center"
+                      justify="center"
+                      shadow="md"
+                    >
+                      {avatarUploading ? (
+                        <Spinner size="xs" color="blue.500" />
+                      ) : (
+                        <Icon color="blue.600" boxSize={3.5}>
+                          <LuCamera />
+                        </Icon>
+                      )}
+                    </Flex>
+                  </Box>
+                </FileUpload.Trigger>
+              </FileUpload.Root>
+            )}
+          </Box>
 
           {loading ? (
             <SkeletonText noOfLines={2} w="160px" />
@@ -240,8 +336,7 @@ export const ProfilePage = () => {
                     borderRadius="full"
                     px={3}
                   >
-                    <LuBadgeCheck />
-                    Verified
+                    <LuBadgeCheck /> Verified
                   </Badge>
                 ) : (
                   <Badge
@@ -250,25 +345,22 @@ export const ProfilePage = () => {
                     borderRadius="full"
                     px={3}
                   >
-                    <LuCircleAlert />
-                    Unverified
+                    <LuCircleAlert /> Unverified
                   </Badge>
                 )}
                 <Badge
-                  colorPalette={profile?.is_driver ? "purple" : "blue.500"}
+                  colorPalette={profile?.is_driver ? "purple" : "blue"}
                   variant="solid"
                   borderRadius="full"
                   px={3}
                 >
                   {profile?.is_driver ? (
                     <>
-                      <LuCar />
-                      Driver
+                      <LuCar /> Driver
                     </>
                   ) : (
                     <>
-                      <LuTicket />
-                      Passenger
+                      <LuTicket /> Passenger
                     </>
                   )}
                 </Badge>
@@ -279,59 +371,107 @@ export const ProfilePage = () => {
       </Box>
 
       <Container maxW="container.md" mt={-16} pb={32} position="relative">
-        {/* ── Stats row ──────────────────────────────────────── */}
+        {/* Stats */}
         <Grid templateColumns="repeat(3, 1fr)" gap={3} mb={4}>
-          {[
-            {
-              label: "Rides Taken",
-              value: profile?.rides_booked ?? 0,
-              icon: <LuTicket />,
-            },
-            {
-              label: "Rides Given",
-              value: profile?.rides_posted ?? 0,
-              icon: <LuCar />,
-            },
-            {
-              label: "Member Since",
-              value: memberSince || "—",
-              icon: <LuCalendar />,
-              small: true,
-            },
-          ].map((stat) => (
-            <Box
-              key={stat.label}
-              bg="bg.panel"
-              borderRadius="2xl"
-              shadow="md"
-              p={4}
-              textAlign="center"
-            >
-              {loading ? (
-                <SkeletonText noOfLines={2} />
-              ) : (
-                <VStack gap={1}>
-                  <Icon color="blue.500" boxSize={5}>
-                    {stat.icon}
-                  </Icon>
-                  <Text
-                    fontWeight="800"
-                    fontSize={stat.small ? "lg" : "2xl"}
-                    color="blue.600"
-                    lineHeight="1.1"
-                  >
-                    {stat.value}
-                  </Text>
-                  <Text fontSize="2xs" color="fg.muted" fontWeight="500">
-                    {stat.label}
-                  </Text>
-                </VStack>
-              )}
-            </Box>
-          ))}
-        </Grid>
+          {/* Rides Taken — navigates to booked tab */}
+          <Box
+            bg="bg.panel"
+            borderRadius="2xl"
+            shadow="md"
+            p={4}
+            textAlign="center"
+            cursor="pointer"
+            transition="all 0.15s ease"
+            _hover={{ shadow: "lg", transform: "translateY(-1px)" }}
+            onClick={() => navigate("/rides?tab=booked")}
+          >
+            {loading ? (
+              <SkeletonText noOfLines={2} />
+            ) : (
+              <VStack gap={1}>
+                <Icon color="blue.500" boxSize={5}>
+                  <LuTicket />
+                </Icon>
+                <Text
+                  fontWeight="800"
+                  fontSize="2xl"
+                  color="blue.600"
+                  lineHeight="1.1"
+                >
+                  {profile?.rides_booked ?? 0}
+                </Text>
+                <Text fontSize="2xs" color="fg.muted" fontWeight="500">
+                  Rides Taken
+                </Text>
+              </VStack>
+            )}
+          </Box>
 
-        {/* ── Contact info ───────────────────────────────────── */}
+          {/* Rides Given — navigates to posted tab */}
+          <Box
+            bg="bg.panel"
+            borderRadius="2xl"
+            shadow="md"
+            p={4}
+            textAlign="center"
+            cursor="pointer"
+            transition="all 0.15s ease"
+            _hover={{ shadow: "lg", transform: "translateY(-1px)" }}
+            onClick={() => navigate("/rides?tab=posted")}
+          >
+            {loading ? (
+              <SkeletonText noOfLines={2} />
+            ) : (
+              <VStack gap={1}>
+                <Icon color="blue.500" boxSize={5}>
+                  <LuCar />
+                </Icon>
+                <Text
+                  fontWeight="800"
+                  fontSize="2xl"
+                  color="blue.600"
+                  lineHeight="1.1"
+                >
+                  {profile?.rides_posted ?? 0}
+                </Text>
+                <Text fontSize="2xs" color="fg.muted" fontWeight="500">
+                  Rides Given
+                </Text>
+              </VStack>
+            )}
+          </Box>
+
+          {/* Member Since — not clickable */}
+          <Box
+            bg="bg.panel"
+            borderRadius="2xl"
+            shadow="md"
+            p={4}
+            textAlign="center"
+          >
+            {loading ? (
+              <SkeletonText noOfLines={2} />
+            ) : (
+              <VStack gap={1}>
+                <Icon color="blue.500" boxSize={5}>
+                  <LuCalendar />
+                </Icon>
+                <Text
+                  fontWeight="800"
+                  fontSize="sm"
+                  color="blue.600"
+                  lineHeight="1.1"
+                >
+                  {memberSince || "—"}
+                </Text>
+                <Text fontSize="2xs" color="fg.muted" fontWeight="500">
+                  Member Since
+                </Text>
+              </VStack>
+            )}
+          </Box>
+        </Grid>
+        {/* Contact info */}
         <Box bg="bg.panel" borderRadius="2xl" shadow="md" p={6} mb={4}>
           <Heading
             size="sm"
@@ -409,8 +549,7 @@ export const ProfilePage = () => {
             </DataList.Root>
           )}
         </Box>
-
-        {/* ── Driver profile (conditional) ───────────────────── */}
+        {/* Driver section — real data from driver_profile */}
         {profile?.is_driver && profile.driver_profile && (
           <Box bg="bg.panel" borderRadius="2xl" shadow="md" p={6} mb={4}>
             <HStack mb={4} justify="space-between">
@@ -428,8 +567,7 @@ export const ProfilePage = () => {
                 borderRadius="full"
                 px={3}
               >
-                <LuStar />
-                Active Driver
+                <LuStar /> Active Driver
               </Badge>
             </HStack>
             <DataList.Root orientation="horizontal" gap={5}>
@@ -491,8 +629,7 @@ export const ProfilePage = () => {
             </DataList.Root>
           </Box>
         )}
-
-        {/* ── Become a driver prompt (if passenger only) ─────── */}
+        {/* Become a driver prompt */}
         {!loading && !profile?.is_driver && (
           <Box
             bg="blue.50"
@@ -501,7 +638,7 @@ export const ProfilePage = () => {
             p={6}
             mb={4}
             borderWidth={1}
-            borderColor={{ _light: "blue.200", _dark: "blue.800" }}
+            borderColor="blue.200"
           >
             <HStack gap={4}>
               <Box
@@ -535,22 +672,19 @@ export const ProfilePage = () => {
             </HStack>
           </Box>
         )}
-
-        {/* ── Log out ────────────────────────────────────────── */}
         <Button
           w="full"
           variant="ghost"
           colorPalette="red"
-          borderRadius="sm"
+          borderRadius="2xl"
           size="lg"
           onClick={handleLogout}
         >
-          <LuLogOut />
-          Log Out
+          <LuLogOut /> Log Out
         </Button>
       </Container>
 
-      {/* ── Edit Profile Drawer ────────────────────────────── */}
+      {/* Edit drawer */}
       <Drawer.Root
         open={editOpen}
         placement="bottom"
@@ -571,13 +705,17 @@ export const ProfilePage = () => {
                 <VStack gap={5}>
                   <Flex justify="center" w="full">
                     <Avatar.Root size="2xl" bg="blue.600">
-                      <Avatar.Fallback
-                        color="white"
-                        fontWeight="800"
-                        fontSize="2xl"
-                      >
-                        {initials}
-                      </Avatar.Fallback>
+                      {editData.avatar_url ? (
+                        <Avatar.Image src={editData.avatar_url} />
+                      ) : (
+                        <Avatar.Fallback
+                          color="white"
+                          fontWeight="800"
+                          fontSize="2xl"
+                        >
+                          {initials}
+                        </Avatar.Fallback>
+                      )}
                     </Avatar.Root>
                   </Flex>
                   <Separator />
@@ -677,7 +815,7 @@ export const ProfilePage = () => {
                   loading={saving}
                   onClick={handleSave}
                 >
-                  {saving ? <Spinner size="sm" /> : "Save Changes"}
+                  Save Changes
                 </Button>
               </Drawer.Footer>
             </Drawer.Content>

@@ -1,46 +1,39 @@
 import {
-  useEffect,
-  useState,
-  useRef,
   useCallback,
+  useEffect,
+  useRef,
+  useState,
   type ReactNode,
 } from "react";
 import axios from "axios";
 import { RideContext, type Ride } from "./ride-context";
+import { baseUrl } from "@/main";
+import { getCurrentUserId } from "@/utils/auth.util";
 
 const WS_BASE = import.meta.env.VITE_WS_URL ?? "ws://localhost:8000";
-const API_BASE = import.meta.env.VITE_API_URL;
 
 export const RideProvider = ({ children }: { children: ReactNode }) => {
   const [rides, setRides] = useState<Ride[]>([]);
-  const [wsError, setWsError] = useState<string | null>(null);
-
-  // ✅ NEW: booked rides state
+  const [singleRide, setSingleRide] = useState<Ride | null>(null);
   const [bookedRideIds, setBookedRideIds] = useState<Set<string>>(new Set());
-
+  const [wsError, setWsError] = useState<string | null>(null);
   const ws = useRef<WebSocket | null>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // -----------------------------
-  // FETCH MY BOOKINGS (NEW)
-  // -----------------------------
-  const fetchMyBookings = useCallback(async () => {
+  const refreshBookings = useCallback(async () => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
     try {
-      const res = await axios.get(`${API_BASE}/rides/my-bookings/`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
-
+      const res = await axios.get<{ booked_ride_ids: string[] }>(
+        `${baseUrl}/rides/my-bookings/`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
       setBookedRideIds(new Set(res.data.booked_ride_ids));
     } catch {
-      setBookedRideIds(new Set());
+      // non-critical
     }
   }, []);
 
-  // -----------------------------
-  // WS CONNECT (UNCHANGED)
-  // -----------------------------
   const connect = useCallback(() => {
     const token = localStorage.getItem("token") ?? "";
     const socket = new WebSocket(`${WS_BASE}/ws/rides/?token=${token}`);
@@ -51,24 +44,24 @@ export const RideProvider = ({ children }: { children: ReactNode }) => {
 
     socket.onmessage = (e) => {
       const msg = JSON.parse(e.data);
+      const currentUserId = getCurrentUserId();
 
       switch (msg.type) {
         case "ALL_RIDES":
           setRides(msg.data);
           break;
-
         case "SINGLE_RIDE":
-          setRides((prev) => {
-            const exists = prev.find((r) => r.id === msg.data.id);
-            if (exists) return prev;
-            return [msg.data, ...prev];
-          });
+          setSingleRide(msg.data);
           break;
-
+        case "RIDE_POSTED":
+          // Confirmation back to the driver — don't add to rides list
+          // The Rides page will refetch from REST on mount
+          break;
         case "broadcast_new_ride":
-          setRides((prev) => [msg.data, ...prev]);
+          if (msg.data?.driver?.id !== currentUserId) {
+            setRides((prev) => [msg.data, ...prev]);
+          }
           break;
-
         case "broadcast_seat_update":
           setRides((prev) =>
             prev.map((r) =>
@@ -78,7 +71,6 @@ export const RideProvider = ({ children }: { children: ReactNode }) => {
             ),
           );
           break;
-
         case "ERROR":
           setWsError(
             msg.message ?? JSON.stringify(msg.errors) ?? "Something went wrong",
@@ -95,22 +87,15 @@ export const RideProvider = ({ children }: { children: ReactNode }) => {
     ws.current = socket;
   }, []);
 
-  // -----------------------------
-  // INIT
-  // -----------------------------
   useEffect(() => {
     connect();
-    fetchMyBookings();
-
+    refreshBookings();
     return () => {
       if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
       ws.current?.close();
     };
-  }, [connect, fetchMyBookings]);
+  }, [connect, refreshBookings]);
 
-  // -----------------------------
-  // WS SEND
-  // -----------------------------
   const sendWSMessage = useCallback(
     (action: string, data: Record<string, unknown> = {}) => {
       if (ws.current?.readyState === WebSocket.OPEN) {
@@ -120,50 +105,39 @@ export const RideProvider = ({ children }: { children: ReactNode }) => {
     [],
   );
 
-  // -----------------------------
-  // ACTIONS
-  // -----------------------------
   const fetchAll = useCallback(
     () => sendWSMessage("fetch_all"),
     [sendWSMessage],
   );
-
-  const bookRide = useCallback(
-    (id: string, seats: number) => {
-      sendWSMessage("book_ride", { ride_id: id, seats });
-
-      // refresh bookings shortly after booking
-      setTimeout(fetchMyBookings, 500);
-    },
-    [sendWSMessage, fetchMyBookings],
+  const fetchRide = useCallback(
+    (rideId: string) => sendWSMessage("fetch_one", { ride_id: rideId }),
+    [sendWSMessage],
   );
-
-  const clearError = useCallback(() => setWsError(null), []);
-
-  // -----------------------------
-  // HELPER
-  // -----------------------------
+  const bookRide = useCallback(
+    (id: string, seats: number) =>
+      sendWSMessage("book_ride", { ride_id: id, seats }),
+    [sendWSMessage],
+  );
   const isRideBooked = useCallback(
-    (id: string) => bookedRideIds.has(id),
+    (rideId: string) => bookedRideIds.has(rideId),
     [bookedRideIds],
   );
+  const clearError = useCallback(() => setWsError(null), []);
 
-  // -----------------------------
-  // PROVIDER
-  // -----------------------------
   return (
     <RideContext.Provider
       value={{
         rides,
+        singleRide,
+        bookedRideIds,
+        isRideBooked,
         fetchAll,
+        fetchRide,
         bookRide,
+        refreshBookings,
         sendWSMessage,
         wsError,
         clearError,
-
-        // ✅ NEW
-        bookedRideIds,
-        isRideBooked,
       }}
     >
       {children}

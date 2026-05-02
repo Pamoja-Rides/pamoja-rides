@@ -1,12 +1,25 @@
 import { Empty, Header } from "@/components/common";
 import { RideItem } from "./RideItem";
 import type { Ride } from "@/context/ride-context";
+import { useRide } from "@/context/ride-context";
 import { baseUrl } from "@/main";
-import { Center, Heading, Skeleton, Tabs, VStack } from "@chakra-ui/react";
+import {
+  Alert,
+  Badge,
+  Box,
+  Center,
+  Heading,
+  HStack,
+  Icon,
+  Skeleton,
+  Tabs,
+  Text,
+  VStack,
+} from "@chakra-ui/react";
 import axios from "axios";
 import { useEffect, useState } from "react";
-import { LuCar, LuTicket } from "react-icons/lu";
-import { useNavigate } from "react-router";
+import { LuCar, LuShieldAlert, LuTicket } from "react-icons/lu";
+import { useLocation, useNavigate, useSearchParams } from "react-router";
 
 const authHeader = () => ({
   headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
@@ -14,13 +27,19 @@ const authHeader = () => ({
 
 export const Rides = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
+  const defaultTab = searchParams.get("tab") ?? "posted";
+  const { isRideBooked } = useRide();
 
   const [postedRides, setPostedRides] = useState<Ride[]>([]);
   const [bookedRides, setBookedRides] = useState<Ride[]>([]);
   const [loadingPosted, setLoadingPosted] = useState(true);
   const [loadingBooked, setLoadingBooked] = useState(true);
 
-  useEffect(() => {
+  const fetchData = () => {
+    setLoadingPosted(true);
+    setLoadingBooked(true);
     axios
       .get<Ride[]>(`${baseUrl}/rides/my-posted/`, authHeader())
       .then((res) => setPostedRides(res.data))
@@ -30,7 +49,16 @@ export const Rides = () => {
       .get<Ride[]>(`${baseUrl}/rides/my-booked/`, authHeader())
       .then((res) => setBookedRides(res.data))
       .finally(() => setLoadingBooked(false));
-  }, []);
+  };
+
+  useEffect(() => {
+    fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state?.refresh]);
+
+  const pendingCount = postedRides.filter(
+    (r) => r.status === "pending_review",
+  ).length;
 
   return (
     <>
@@ -38,12 +66,24 @@ export const Rides = () => {
         <Heading>My Rides</Heading>
       </Header>
 
-      <Tabs.Root defaultValue="posted" variant="enclosed" size="sm">
+      <Tabs.Root defaultValue={defaultTab} variant="enclosed" size="sm">
         <Center>
           <Tabs.List w="85%" h={10}>
             <Tabs.Trigger value="posted" w="1/2" h="100%">
               <LuCar />
               Posted
+              {pendingCount > 0 && (
+                <Badge
+                  colorPalette="orange"
+                  variant="solid"
+                  borderRadius="full"
+                  ml={1}
+                  px={1.5}
+                  fontSize="2xs"
+                >
+                  {pendingCount}
+                </Badge>
+              )}
             </Tabs.Trigger>
             <Tabs.Trigger value="booked" w="1/2" h="100%">
               <LuTicket />
@@ -64,12 +104,30 @@ export const Rides = () => {
           ) : (
             <VStack px={4} pt={4}>
               {postedRides.map((ride) => (
-                <RideItem
-                  key={ride.id}
-                  ride={ride}
-                  isOwnRide={true}
-                  onClick={() => navigate(`/rides/${ride.id}`)}
-                />
+                <Box key={ride.id} w="full">
+                  {ride.status === "pending_review" && (
+                    <Alert.Root
+                      status="warning"
+                      variant="surface"
+                      borderRadius="xl"
+                      mb={2}
+                      py={2}
+                    >
+                      <Alert.Indicator>
+                        <LuShieldAlert />
+                      </Alert.Indicator>
+                      <Alert.Title fontSize="xs" flex={1}>
+                        This ride is under review and not visible to passengers
+                        until identity is verified.
+                      </Alert.Title>
+                    </Alert.Root>
+                  )}
+                  <RideItem
+                    ride={ride}
+                    isOwnRide
+                    onClick={() => navigate(`/rides/${ride.id}`)}
+                  />
+                </Box>
               ))}
             </VStack>
           )}

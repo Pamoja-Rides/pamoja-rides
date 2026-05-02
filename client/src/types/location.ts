@@ -6,3 +6,10 @@ export interface LocationOption {
   latitude: number;
   longitude: number;
 }
+
+export interface LocationPlace {
+  id: string;
+  name: string;
+  main_text: string;
+  secondary_text: string;
+}

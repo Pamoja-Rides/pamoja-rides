@@ -32,10 +32,18 @@ class RideConsumer(AsyncWebsocketConsumer):
                 return
             res = await self.create_ride(user, data)
             if res['status'] == 'success':
-                await self.channel_layer.group_send(
-                    self.group_name,
-                    {'type': 'broadcast_new_ride', 'data': res['data']},
-                )
+                # Only broadcast to other users if ride is active (not flagged)
+                if not res.get('flagged'):
+                    await self.channel_layer.group_send(
+                        self.group_name,
+                        {'type': 'broadcast_new_ride', 'data': res['data']},
+                    )
+                # Always confirm back to the posting user
+                await self.send(json.dumps({
+                    'type': 'RIDE_POSTED',
+                    'data': res['data'],
+                    'flagged': res.get('flagged', False),
+                }))
             else:
                 await self.send(json.dumps({'type': 'ERROR', 'errors': res['errors']}))
 
@@ -53,8 +61,6 @@ class RideConsumer(AsyncWebsocketConsumer):
                         'available_seats': res['new_count'],
                     },
                 )
-
-    # --- DB Helpers ---
 
     @database_sync_to_async
     def get_all_rides(self):
@@ -76,26 +82,58 @@ class RideConsumer(AsyncWebsocketConsumer):
     def create_ride(self, user, data):
         try:
             with transaction.atomic():
-                DriverProfile.objects.update_or_create(
-                    user=user,
-                    defaults={
-                        'nid_number': data.get('nid_number'),
-                        'license_number': data.get('license_number'),
-                        'full_name_on_id': data.get('full_name_on_id'),
-                        'nid_image_url': data.get('nid_image_url'),
-                        'license_image_url': data.get('license_image_url'),
-                    },
-                )
-                user.is_driver = True
-                user.save()
+                identity_flag = data.get('identity_flag', False)
+
+                # Only persist driver profile if identity checks passed
+                if not identity_flag:
+                    DriverProfile.objects.update_or_create(
+                        user=user,
+                        defaults={
+                            'nid_number': data.get('nid_number'),
+                            'license_number': data.get('license_number'),
+                            'full_name_on_id': data.get('full_name_on_id'),
+                            'nid_image_url': data.get('nid_image_url'),
+                            'license_image_url': data.get('license_image_url'),
+                            'ai_verified_same_person': data.get('ai_verified_same_person', False),
+                            'ai_confidence': data.get('ai_confidence', ''),
+                            'ai_nid_name': data.get('ai_nid_name', ''),
+                            'ai_license_name': data.get('ai_license_name', ''),
+                            'identity_flag': False,
+                            'identity_flag_reason': '',
+                        },
+                    )
+                    user.is_driver = True
+                    user.save()
+                else:
+                    # Save with flag but don't mark user as a trusted driver yet
+                    DriverProfile.objects.update_or_create(
+                        user=user,
+                        defaults={
+                            'nid_number': data.get('nid_number'),
+                            'license_number': data.get('license_number'),
+                            'full_name_on_id': data.get('full_name_on_id'),
+                            'nid_image_url': data.get('nid_image_url'),
+                            'license_image_url': data.get('license_image_url'),
+                            'ai_verified_same_person': data.get('ai_verified_same_person', False),
+                            'ai_confidence': data.get('ai_confidence', ''),
+                            'ai_nid_name': data.get('ai_nid_name', ''),
+                            'ai_license_name': data.get('ai_license_name', ''),
+                            'identity_flag': True,
+                            'identity_flag_reason': data.get('identity_flag_reason', ''),
+                        },
+                    )
+                    # Do not set is_driver=True when flagged
 
                 ser = RideCreateSerializer(data=data)
                 if not ser.is_valid():
                     return {'status': 'error', 'errors': ser.errors}
 
-                ride = ser.save(driver=user)
+                # Flagged rides get pending_review status — invisible to other users
+                ride = ser.save(
+                    driver=user,
+                    status='pending_review' if identity_flag else 'active',
+                )
 
-                # Create intermediate stops in order
                 stops = data.get('stops', [])
                 for index, stop in enumerate(stops):
                     if stop.get('name'):
@@ -107,11 +145,14 @@ class RideConsumer(AsyncWebsocketConsumer):
                             order=index,
                         )
 
-                ride.refresh_from_db()
                 ride_data = RideSerializer(
                     Ride.objects.prefetch_related('stops').get(id=ride.id)
                 ).data
-                return {'status': 'success', 'data': ride_data}
+                return {
+                    'status': 'success',
+                    'data': ride_data,
+                    'flagged': identity_flag,
+                }
         except Exception as e:
             return {'status': 'error', 'errors': str(e)}
 
@@ -131,3 +172,9 @@ class RideConsumer(AsyncWebsocketConsumer):
                 return {'status': 'error', 'message': 'No seats available'}
         except Exception:
             return {'status': 'error'}
+
+    async def broadcast_new_ride(self, event):
+        await self.send(json.dumps(event))
+
+    async def broadcast_seat_update(self, event):
+        await self.send(json.dumps(event))

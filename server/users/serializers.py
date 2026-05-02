@@ -18,7 +18,7 @@ class UserSignupSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["id", "phone_number", "first_name", "last_name", "is_verified", "preferred_language", "is_driver"]
+        fields = ["id", "phone_number", "first_name", "last_name", "is_verified", "preferred_language", "is_driver", "avatar_url"]
 
 
 class DriverProfileSerializer(serializers.Serializer):
@@ -39,18 +39,9 @@ class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            "id",
-            "phone_number",
-            "first_name",
-            "last_name",
-            "email",
-            "is_verified",
-            "preferred_language",
-            "is_driver",
-            "member_since",
-            "rides_posted",
-            "rides_booked",
-            "driver_profile",
+            "id", "phone_number", "first_name", "last_name", "email",
+            "is_verified", "is_driver", "preferred_language", "avatar_url",
+            "member_since", "rides_posted", "rides_booked", "driver_profile",
         ]
 
     def get_driver_profile(self, obj):
@@ -63,14 +54,16 @@ class UserProfileSerializer(serializers.ModelSerializer):
         return obj.rides_driven.count()
 
     def get_rides_booked(self, obj):
-        return obj.booking_set.count() if hasattr(obj, 'booking_set') else 0
+        from rides.models import Booking
+        return Booking.objects.filter(passenger=obj).count()
 
 
 class UpdateProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["first_name", "last_name", "email", "phone_number", "preferred_language"]
+        fields = ["first_name", "last_name", "email", "phone_number", "preferred_language", "avatar_url"]
         extra_kwargs = {
             "email": {"required": False},
             "phone_number": {"required": False},
+            "avatar_url": {"required": False},
         }

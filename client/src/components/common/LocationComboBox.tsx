@@ -9,7 +9,7 @@ import {
 } from "@chakra-ui/react";
 import { useRef, useState } from "react";
 import axios from "axios";
-import type { LocationOption } from "@/types/location";
+import type { LocationOption, LocationPlace } from "@/types/location";
 
 type LocationItem = {
   label: string;
@@ -20,7 +20,7 @@ type LocationItem = {
 interface Props {
   placeholder: string;
   value: string;
-  onSelect: (location: LocationOption) => void;
+  onSelect: (location: LocationPlace) => void;
   startElement?: React.ReactNode;
 }
 

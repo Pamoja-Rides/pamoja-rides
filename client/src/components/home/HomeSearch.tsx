@@ -3,17 +3,22 @@ import { LuSearch } from "react-icons/lu";
 import { useTranslation } from "react-i18next";
 import { DateCalendar, LocationComboBox } from "../common";
 import { useState } from "react";
+import { useNavigate } from "react-router";
 import type { LocationOption } from "@/types/location";
 
 export const HomeSearch = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
 
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
-
-  // optional: if you want coordinates later
   const [fromLocation, setFromLocation] = useState<LocationOption | null>(null);
   const [toLocation, setToLocation] = useState<LocationOption | null>(null);
+
+  const handleSearch = () => {
+    const params = new URLSearchParams();
+    if (fromLocation?.name) params.set("origin", fromLocation.name);
+    if (toLocation?.name) params.set("destination", toLocation.name);
+    navigate(`/search?${params.toString()}`);
+  };
 
   return (
     <Stack
@@ -27,26 +32,17 @@ export const HomeSearch = () => {
     >
       <LocationComboBox
         placeholder={t("homePage.placeholders.from")}
-        value={from}
+        value={fromLocation?.name ?? ""}
         startElement={<Circle size={3} bg="blue.500" ml={1} />}
-        onSelect={(loc) => {
-          setFrom(loc.name);
-          setFromLocation(loc);
-        }}
+        onSelect={setFromLocation}
       />
-
       <LocationComboBox
         placeholder={t("homePage.placeholders.to")}
-        value={to}
+        value={toLocation?.name ?? ""}
         startElement={<Circle size={3} bg="orange.500" ml={1} />}
-        onSelect={(loc) => {
-          setTo(loc.name);
-          setToLocation(loc);
-        }}
+        onSelect={setToLocation}
       />
-
       <DateCalendar />
-
       <Button
         size="lg"
         colorPalette="blue"
@@ -54,7 +50,7 @@ export const HomeSearch = () => {
         width="full"
         justifyContent="center"
         gap={3}
-        onClick={() => console.log("location", fromLocation, toLocation)}
+        onClick={handleSearch}
       >
         <LuSearch size={18} />
         {t("homePage.searchBtn")}

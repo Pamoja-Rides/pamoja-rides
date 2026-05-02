@@ -12,6 +12,7 @@
   "dependencies": {
     "@chakra-ui/react": "^3.34.0",
     "@emotion/react": "^11.14.0",
+    "@google/genai": "^1.50.1",
     "@react-oauth/google": "^0.13.4",
     "axios": "^1.13.6",
     "i18next": "^25.10.9",

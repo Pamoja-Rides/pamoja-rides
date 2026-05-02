@@ -21,6 +21,8 @@ export interface PostRideData {
   car_model: string;
   license_plate: string;
   available_seats: number;
+  price_per_seat: number;
+  // Driver identity
   nid_number: string;
   license_number: string;
   full_name_on_id: string;
@@ -28,7 +30,13 @@ export interface PostRideData {
   license_image_url: string;
   driver_phone: string;
   notes?: string;
-  price_per_seat: number;
+  // AI verification metadata sent to backend
+  ai_verified_same_person: boolean;
+  ai_confidence: string;
+  ai_nid_name: string;
+  ai_license_name: string;
+  identity_flag: boolean;
+  identity_flag_reason: string;
 }
 
 interface PostRideContextType {

@@ -80,9 +80,11 @@ class RideSearchView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
+        from datetime import timedelta
+        from django.db.models import Q
+
         qs = Ride.objects.filter(
             status='active',
-            departure_datetime__gt=timezone.now(),
         ).prefetch_related('stops').select_related('driver')
 
         if request.user.is_authenticated:
@@ -92,10 +94,11 @@ class RideSearchView(APIView):
         destination_q = request.query_params.get('destination', '').strip()
         date_filter = request.query_params.get('date', '').strip()
         min_seats = request.query_params.get('seats', '').strip()
-        max_price = request.query_params.get('max_price', '').strip()
+        time_filter = request.query_params.get('time', '').strip()
+        sort = request.query_params.get('sort', '').strip()
 
-        # Date filter
         now = timezone.now()
+
         if date_filter == 'today':
             qs = qs.filter(departure_datetime__date=now.date())
         elif date_filter == 'week':
@@ -106,69 +109,54 @@ class RideSearchView(APIView):
         if min_seats.isdigit():
             qs = qs.filter(available_seats__gte=int(min_seats))
 
-        # Pre-filter by origin/destination to reduce Python-side work
-        # A ride is a candidate if origin_q appears anywhere in its waypoints
-        # and destination_q appears anywhere in its waypoints
         if origin_q:
             qs = qs.filter(
-                Q(origin__icontains=origin_q) |
-                Q(stops__name__icontains=origin_q)
+                Q(origin__icontains=origin_q) | Q(stops__name__icontains=origin_q)
             ).distinct()
 
         if destination_q:
             qs = qs.filter(
-                Q(destination__icontains=destination_q) |
-                Q(stops__name__icontains=destination_q)
+                Q(destination__icontains=destination_q) | Q(stops__name__icontains=destination_q)
             ).distinct()
 
-        rides = list(qs.order_by('departure_datetime')[:200])
+        # Time of day filter — applied in Python after DB query
+        # morning: 05:00–11:59, afternoon: 12:00–16:59, evening: 17:00–23:59
+        if sort == 'price_asc':
+            qs = qs.order_by('price_per_seat', 'departure_datetime')
+        elif sort == 'price_desc':
+            qs = qs.order_by('-price_per_seat', 'departure_datetime')
+        else:
+            qs = qs.order_by('departure_datetime')
 
-        # Price filter (CharField, done in Python)
-        if max_price.isdigit():
-            cap = int(max_price)
-            rides = [r for r in rides if self._parse_price(r.price_per_seat) <= cap]
+        rides = list(qs[:200])
 
-        # Ordering constraint: from must appear before to in the waypoint sequence
+        if time_filter == 'morning':
+            rides = [r for r in rides if 5 <= r.departure_datetime.hour < 12]
+        elif time_filter == 'afternoon':
+            rides = [r for r in rides if 12 <= r.departure_datetime.hour < 17]
+        elif time_filter == 'evening':
+            rides = [r for r in rides if r.departure_datetime.hour >= 17]
+
         if origin_q and destination_q:
-            rides = [
-                r for r in rides
-                if self._from_before_to(r, origin_q, destination_q)
-            ]
+            rides = [r for r in rides if self._from_before_to(r, origin_q, destination_q)]
 
         return Response(RideSerializer(rides, many=True).data)
 
     @staticmethod
-    def _waypoints(ride: Ride) -> list[dict]:
-        """
-        Returns the full ordered waypoint list for a ride:
-        origin (order=0) → stops (order=1..n) → destination (order=n+1)
-        """
+    def _waypoints(ride):
         points = [{'name': ride.origin, 'order': 0}]
-        for stop in ride.stops.all():  # already ordered by stop.order
+        for stop in ride.stops.all():
             points.append({'name': stop.name, 'order': stop.order + 1})
         points.append({'name': ride.destination, 'order': len(points)})
         return points
 
-    @staticmethod
-    def _parse_price(value: str) -> int:
-        try:
-            return int(''.join(filter(str.isdigit, value)))
-        except (ValueError, TypeError):
-            return 0
-
-    def _from_before_to(self, ride: Ride, from_q: str, to_q: str) -> bool:
-        """
-        Returns True only if the first waypoint matching from_q
-        comes strictly before the first waypoint matching to_q.
-        """
+    def _from_before_to(self, ride, from_q, to_q):
         waypoints = self._waypoints(ride)
         from_order = next(
-            (wp['order'] for wp in waypoints if from_q.lower() in wp['name'].lower()),
-            None,
+            (wp['order'] for wp in waypoints if from_q.lower() in wp['name'].lower()), None
         )
         to_order = next(
-            (wp['order'] for wp in waypoints if to_q.lower() in wp['name'].lower()),
-            None,
+            (wp['order'] for wp in waypoints if to_q.lower() in wp['name'].lower()), None
         )
         if from_order is None or to_order is None:
             return False
@@ -267,6 +255,7 @@ class LocationDetailView(APIView):
         try:
             res = requests.get(url, params=params)
             data = res.json()
+            print("try me", data)
             location = data.get("result", {}).get("geometry", {}).get("location", {})
 
             print("loc", location)
