@@ -9,6 +9,7 @@ import {
   Heading,
   HStack,
   Icon,
+  IconButton,
   Input,
   Spinner,
   Text,
@@ -22,6 +23,7 @@ import {
   LuUpload,
   LuUser,
 } from "react-icons/lu";
+import { IoCloseOutline } from "react-icons/io5";
 import { useContext, useEffect, useRef, useState } from "react";
 import { useNIDOCR, useLicenseOCR, crossCheckDocuments } from "@/hooks/useOCR";
 import type {
@@ -75,6 +77,7 @@ export const DriverDetails = () => {
     useState<DriverProfileData | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [usingExisting, setUsingExisting] = useState(false);
+  const [showExistingDocBadge, setShowExistingDocBadge] = useState(true);
 
   // Fetch existing driver profile on mount
   useEffect(() => {
@@ -99,8 +102,12 @@ export const DriverDetails = () => {
   }, []);
 
   // Pre-fill form with existing profile when user chooses to reuse it
-  const applyExistingProfile = () => {
-    if (!existingProfile || !context) return;
+  const applyExistingProfile = (hasCancelled = false) => {
+    if (hasCancelled) {
+      setShowExistingDocBadge(false);
+      return;
+    }
+    if (!existingProfile || !context || hasCancelled) return;
     context.setFormData((prev) => ({
       ...prev,
       nid_number: existingProfile.nid_number,
@@ -230,30 +237,44 @@ export const DriverDetails = () => {
       </VStack>
 
       {/* Existing profile banner */}
-      {!profileLoading && existingProfile && !usingExisting && (
-        <Alert.Root status="info" variant="surface" borderRadius="xl" w="full">
-          <Alert.Indicator />
-          <Alert.Title flex={1} fontSize="sm">
-            We found your existing documents on file. Use them or upload new
-            ones.
-          </Alert.Title>
-          <Alert.Description>
-            <HStack gap={2} mt={1}>
-              <Badge
-                colorPalette="blue"
-                variant="solid"
-                cursor="pointer"
-                onClick={applyExistingProfile}
-                px={3}
-                py={1}
-                borderRadius="full"
-              >
-                Use existing
-              </Badge>
-            </HStack>
-          </Alert.Description>
-        </Alert.Root>
-      )}
+      {!profileLoading &&
+        existingProfile &&
+        !usingExisting &&
+        showExistingDocBadge && (
+          <Alert.Root
+            status="info"
+            variant="surface"
+            borderRadius="xl"
+            w="full"
+          >
+            <Alert.Indicator />
+            <Alert.Title flex={1} fontSize="xs">
+              We found your existing documents on file. Use them or upload new
+              ones.
+            </Alert.Title>
+            <Alert.Description>
+              <HStack gap={2} mt={1}>
+                <Badge
+                  colorPalette="blue"
+                  variant="solid"
+                  cursor="pointer"
+                  onClick={() => applyExistingProfile()}
+                  px={3}
+                  py={1}
+                  borderRadius="full"
+                >
+                  Use existing
+                </Badge>
+                <IconButton
+                  variant={"ghost"}
+                  onClick={() => applyExistingProfile(true)}
+                >
+                  <IoCloseOutline />
+                </IconButton>
+              </HStack>
+            </Alert.Description>
+          </Alert.Root>
+        )}
 
       {usingExisting ? (
         // Show summary of reused profile

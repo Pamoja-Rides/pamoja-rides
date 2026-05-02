@@ -57,7 +57,8 @@ const steps = [
       data?.nid_image_url &&
       data?.license_image_url &&
       data?.license_number &&
-      data?.driver_phone,
+      data?.driver_phone &&
+      data?.ai_verified_same_person === true, // ← blocks Next/Review if mismatch
   },
 ];
 
@@ -407,7 +408,7 @@ const PostRideInner = () => {
             </VStack>
           </Steps.CompletedContent>
 
-          <ButtonGroup size="sm" variant="outline" mt="10vh">
+          <ButtonGroup size="sm" variant="outline" mt="5vh" mb={"5vh"}>
             <Steps.PrevTrigger asChild>
               <Button>Prev</Button>
             </Steps.PrevTrigger>

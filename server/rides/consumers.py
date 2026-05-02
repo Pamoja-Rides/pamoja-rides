@@ -82,57 +82,30 @@ class RideConsumer(AsyncWebsocketConsumer):
     def create_ride(self, user, data):
         try:
             with transaction.atomic():
-                identity_flag = data.get('identity_flag', False)
-
-                # Only persist driver profile if identity checks passed
-                if not identity_flag:
-                    DriverProfile.objects.update_or_create(
-                        user=user,
-                        defaults={
-                            'nid_number': data.get('nid_number'),
-                            'license_number': data.get('license_number'),
-                            'full_name_on_id': data.get('full_name_on_id'),
-                            'nid_image_url': data.get('nid_image_url'),
-                            'license_image_url': data.get('license_image_url'),
-                            'ai_verified_same_person': data.get('ai_verified_same_person', False),
-                            'ai_confidence': data.get('ai_confidence', ''),
-                            'ai_nid_name': data.get('ai_nid_name', ''),
-                            'ai_license_name': data.get('ai_license_name', ''),
-                            'identity_flag': False,
-                            'identity_flag_reason': '',
-                        },
-                    )
-                    user.is_driver = True
-                    user.save()
-                else:
-                    # Save with flag but don't mark user as a trusted driver yet
-                    DriverProfile.objects.update_or_create(
-                        user=user,
-                        defaults={
-                            'nid_number': data.get('nid_number'),
-                            'license_number': data.get('license_number'),
-                            'full_name_on_id': data.get('full_name_on_id'),
-                            'nid_image_url': data.get('nid_image_url'),
-                            'license_image_url': data.get('license_image_url'),
-                            'ai_verified_same_person': data.get('ai_verified_same_person', False),
-                            'ai_confidence': data.get('ai_confidence', ''),
-                            'ai_nid_name': data.get('ai_nid_name', ''),
-                            'ai_license_name': data.get('ai_license_name', ''),
-                            'identity_flag': True,
-                            'identity_flag_reason': data.get('identity_flag_reason', ''),
-                        },
-                    )
-                    # Do not set is_driver=True when flagged
+                DriverProfile.objects.update_or_create(
+                    user=user,
+                    defaults={
+                        'nid_number': data.get('nid_number'),
+                        'license_number': data.get('license_number'),
+                        'full_name_on_id': data.get('full_name_on_id'),
+                        'nid_image_url': data.get('nid_image_url'),
+                        'license_image_url': data.get('license_image_url'),
+                        'ai_verified_same_person': data.get('ai_verified_same_person', False),
+                        'ai_confidence': data.get('ai_confidence', ''),
+                        'ai_nid_name': data.get('ai_nid_name', ''),
+                        'ai_license_name': data.get('ai_license_name', ''),
+                        'identity_flag': False,
+                        'identity_flag_reason': '',
+                    },
+                )
+                user.is_driver = True
+                user.save()
 
                 ser = RideCreateSerializer(data=data)
                 if not ser.is_valid():
                     return {'status': 'error', 'errors': ser.errors}
 
-                # Flagged rides get pending_review status — invisible to other users
-                ride = ser.save(
-                    driver=user,
-                    status='pending_review' if identity_flag else 'active',
-                )
+                ride = ser.save(driver=user, status='active')
 
                 stops = data.get('stops', [])
                 for index, stop in enumerate(stops):
@@ -148,11 +121,7 @@ class RideConsumer(AsyncWebsocketConsumer):
                 ride_data = RideSerializer(
                     Ride.objects.prefetch_related('stops').get(id=ride.id)
                 ).data
-                return {
-                    'status': 'success',
-                    'data': ride_data,
-                    'flagged': identity_flag,
-                }
+                return {'status': 'success', 'data': ride_data}
         except Exception as e:
             return {'status': 'error', 'errors': str(e)}
 
