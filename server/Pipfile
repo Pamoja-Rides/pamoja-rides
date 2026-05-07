@@ -19,6 +19,7 @@ resend = "*"
 channels = "*"
 daphne = "*"
 channels-redis = "*"
+pywebpush = "*"
 
 [dev-packages]
 

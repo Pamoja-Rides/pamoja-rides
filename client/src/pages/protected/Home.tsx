@@ -68,7 +68,7 @@ export const Home = () => {
 
   const nearbyRides = useMemo<Ride[]>(() => {
     // Always exclude booked rides
-    const unbooked = rides.filter((r) => !bookedRideIds.has(r.id));
+    const unbooked = rides;
 
     if (!userCoords) return unbooked;
 

@@ -4,3 +4,5 @@ export * from "./Search";
 export * from "./PostRide";
 export * from "./Rides";
 export * from "./Profile";
+export * from "./RideDetailsPage";
+export * from "./EditRide";

@@ -33,6 +33,10 @@ class RideConsumer(AsyncWebsocketConsumer):
             res = await self.create_ride(user, data)
             if res['status'] == 'success':
                 # Only broadcast to other users if ride is active (not flagged)
+                await self.channel_layer.group_send(
+                    self.group_name,
+                    {'type': 'broadcast_new_ride', 'data': res['data']},
+                )
                 if not res.get('flagged'):
                     await self.channel_layer.group_send(
                         self.group_name,
@@ -146,4 +150,7 @@ class RideConsumer(AsyncWebsocketConsumer):
         await self.send(json.dumps(event))
 
     async def broadcast_seat_update(self, event):
+        await self.send(json.dumps(event))
+
+    async def broadcast_ride_cancelled(self, event):
         await self.send(json.dumps(event))

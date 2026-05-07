@@ -53,7 +53,8 @@ INSTALLED_APPS = [
     'corsheaders',
     'channels',
     'users',
-    'rides'
+    'rides',
+    'notifications'
 ]
 
 MIDDLEWARE = [

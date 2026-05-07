@@ -46,10 +46,9 @@ export const DateCalendar = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
-  const timeValue =
-    value[0] && value[0].hour > currentDate.getHours()
-      ? `${String(value[0].hour).padStart(2, "0")}:${String(value[0].minute).padStart(2, "0")}`
-      : "";
+  const timeValue = value[0]
+    ? `${String(value[0].hour).padStart(2, "0")}:${String(value[0].minute).padStart(2, "0")}`
+    : "";
 
   const onTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const [hours, minutes] = e.currentTarget.value.split(":").map(Number);
@@ -94,14 +93,36 @@ export const DateCalendar = () => {
   const onDateChange = (details: { value: DateValue[] }) => {
     const newDate = details.value[0];
     if (!newDate) return setValue([]);
+
     const prevTime = value[0] ?? { hour: 0, minute: 0 };
+    const now = new Date();
+
+    const isToday =
+      newDate.year === now.getFullYear() &&
+      newDate.month === now.getMonth() + 1 &&
+      newDate.day === now.getDate();
+
+    let hour = prevTime.hour;
+    let minute = prevTime.minute;
+
+    if (isToday) {
+      const isPast =
+        hour < now.getHours() ||
+        (hour === now.getHours() && minute < now.getMinutes());
+
+      if (isPast) {
+        hour = now.getHours();
+        minute = now.getMinutes();
+      }
+    }
+
     setValue([
       new CalendarDateTime(
         newDate.year,
         newDate.month,
         newDate.day,
-        prevTime.hour,
-        prevTime.minute,
+        hour,
+        minute,
       ),
     ]);
   };

@@ -21,33 +21,27 @@ import { useNavigate, useSearchParams } from "react-router";
 import { baseUrl } from "@/main";
 import { RideItem } from "./RideItem";
 
+const FILTER_LABELS: Record<string, string> = {
+  today: "Today",
+  week: "This week",
+  month: "This month",
+  morning: "Morning",
+  afternoon: "Afternoon",
+  evening: "Evening",
+  price_asc: "Price ↑",
+  price_desc: "Price ↓",
+};
+
 export const Search = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const rideContext = useContext(RideContext);
 
-  const [fromLocation, setFromLocation] = useState<LocationOption | null>(
-    () => {
-      const name = searchParams.get("origin");
-      return name
-        ? {
-            id: "",
-            name,
-            district: "",
-            province: "",
-            latitude: 0,
-            longitude: 0,
-          }
-        : null;
-    },
-  );
-  const [toLocation, setToLocation] = useState<LocationOption | null>(() => {
-    const name = searchParams.get("destination");
-    return name
-      ? { id: "", name, district: "", province: "", latitude: 0, longitude: 0 }
-      : null;
-  });
+  // Raw text tracked separately from selected LocationOption so
+  // search fires on every keystroke, not just on dropdown selection
+  const [fromText, setFromText] = useState(searchParams.get("origin") ?? "");
+  const [toText, setToText] = useState(searchParams.get("destination") ?? "");
 
   const [filters, setFilters] = useState<SearchFilters>(DEFAULT_FILTERS);
   const [pendingFilters, setPendingFilters] =
@@ -59,12 +53,10 @@ export const Search = () => {
   const abortRef = useRef<AbortController | null>(null);
 
   const runSearch = async (
-    from: LocationOption | null,
-    to: LocationOption | null,
+    fromName: string,
+    toName: string,
     activeFilters: SearchFilters,
   ) => {
-    // if (!from?.name && !to?.name) return;
-
     if (abortRef.current) abortRef.current.abort();
     abortRef.current = new AbortController();
 
@@ -73,18 +65,23 @@ export const Search = () => {
 
     try {
       const params = new URLSearchParams();
-      if (from?.name) params.set("origin", from.name);
-      if (to?.name) params.set("destination", to.name);
+      if (fromName.trim()) params.set("origin", fromName.trim());
+      if (toName.trim()) params.set("destination", toName.trim());
       if (activeFilters.date) params.set("date", activeFilters.date);
       if (activeFilters.seats > 1)
         params.set("seats", String(activeFilters.seats));
       if (activeFilters.time) params.set("time", activeFilters.time);
       if (activeFilters.sort) params.set("sort", activeFilters.sort);
 
-      console.log("params", params);
+      const token = localStorage.getItem("token");
+
       const res = await axios.get<Ride[]>(
         `${baseUrl}/rides/search/?${params.toString()}`,
-        { signal: abortRef.current.signal },
+        {
+          signal: abortRef.current.signal,
+          // Always send token so backend excludes the current user's own rides
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        },
       );
       setResults(res.data);
     } catch (err) {
@@ -94,28 +91,30 @@ export const Search = () => {
     }
   };
 
-  // Auto-search when location changes
+  // Fire search whenever either text input changes — includes clearing
   useEffect(() => {
-    runSearch(fromLocation, toLocation, filters);
-  }, [fromLocation, toLocation]);
+    runSearch(fromText, toText, filters);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fromText, toText]);
 
-  // Auto-search on mount if params pre-filled from HomeSearch
+  // On first mount, if params were pre-filled from HomeSearch, run once
   useEffect(() => {
-    if (fromLocation || toLocation) {
-      runSearch(fromLocation, toLocation, filters);
+    if (fromText || toText) {
+      runSearch(fromText, toText, filters);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleApplyFilters = (applied: SearchFilters) => {
     setFilters(applied);
     setShowFilter(false);
-    runSearch(fromLocation, toLocation, applied);
+    runSearch(fromText, toText, applied);
   };
 
   const handleClearFilter = (key: keyof SearchFilters) => {
     const updated = { ...filters, [key]: DEFAULT_FILTERS[key] };
     setFilters(updated);
-    runSearch(fromLocation, toLocation, updated);
+    runSearch(fromText, toText, updated);
   };
 
   const activeFilterCount = [
@@ -124,17 +123,6 @@ export const Search = () => {
     filters.time !== "",
     filters.sort !== "",
   ].filter(Boolean).length;
-
-  const FILTER_LABELS: Record<string, string> = {
-    today: "Today",
-    week: "This week",
-    month: "This month",
-    morning: "Morning",
-    afternoon: "Afternoon",
-    evening: "Evening",
-    price_asc: "Price ↑",
-    price_desc: "Price ↓",
-  };
 
   return (
     <Container direction="column">
@@ -146,13 +134,15 @@ export const Search = () => {
         <HStack w="full">
           <LocationComboBox
             placeholder={t("homePage.placeholders.from")}
-            value={fromLocation?.name ?? ""}
-            onSelect={setFromLocation}
+            value={fromText}
+            onSelect={(loc: LocationOption) => setFromText(loc.name)}
+            onInputChange={(val) => setFromText(val)}
           />
           <LocationComboBox
             placeholder={t("homePage.placeholders.to")}
-            value={toLocation?.name ?? ""}
-            onSelect={setToLocation}
+            value={toText}
+            onSelect={(loc: LocationOption) => setToText(loc.name)}
+            onInputChange={(val) => setToText(val)}
           />
           <IconButton
             variant="outline"
@@ -283,7 +273,7 @@ export const Search = () => {
           setPendingFilters(DEFAULT_FILTERS);
           setFilters(DEFAULT_FILTERS);
           setShowFilter(false);
-          runSearch(fromLocation, toLocation, DEFAULT_FILTERS);
+          runSearch(fromText, toText, DEFAULT_FILTERS);
         }}
       />
     </Container>

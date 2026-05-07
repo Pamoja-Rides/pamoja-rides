@@ -1,4 +1,5 @@
 import os
+from django.db import models
 import requests
 from django.conf import settings
 from django.db import transaction
@@ -15,6 +16,8 @@ from asgiref.sync import async_to_sync
 from .models import Ride, DriverProfile, Booking, RideStop
 from .serializers import RideSerializer, RideCreateSerializer
 from dotenv import load_dotenv
+from notifications.utils import create_and_push
+from notifications.models import Notification
 
 # Load .env
 load_dotenv()
@@ -199,7 +202,10 @@ class BookRideView(APIView):
 
 
 class RidePassengersView(APIView):
-    """Returns the list of passengers who booked a ride. Only accessible by the ride's driver."""
+    """
+    Returns one entry per passenger, merging multiple bookings into
+    a single record with total_seats and a list of individual bookings.
+    """
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, ride_id):
@@ -212,25 +218,38 @@ class RidePassengersView(APIView):
             Booking.objects
             .filter(ride=ride)
             .select_related('passenger')
-            .order_by('created_at')
+            .order_by('passenger_id', 'created_at')
         )
 
-        data = [
-            {
+        # Merge multiple bookings from the same passenger into one entry
+        merged: dict = {}
+        for b in bookings:
+            pid = str(b.passenger.id)
+            if pid not in merged:
+                merged[pid] = {
+                    "passenger": {
+                        "id": pid,
+                        "first_name": b.passenger.first_name,
+                        "last_name": b.passenger.last_name,
+                        "phone_number": b.passenger.phone_number,
+                        "is_verified": b.passenger.is_verified,
+                    },
+                    "total_seats": 0,
+                    "bookings": [],
+                    # Use the first booking's id as the primary one for cancel action
+                    "booking_id": str(b.id),
+                    "booked_at": b.created_at.isoformat(),
+                    "all_booking_ids": [],
+                }
+            merged[pid]["total_seats"] += b.seats_booked
+            merged[pid]["all_booking_ids"].append(str(b.id))
+            merged[pid]["bookings"].append({
                 "booking_id": str(b.id),
-                "seats_booked": b.seats_booked,
+                "seats": b.seats_booked,
                 "booked_at": b.created_at.isoformat(),
-                "passenger": {
-                    "id": str(b.passenger.id),
-                    "first_name": b.passenger.first_name,
-                    "last_name": b.passenger.last_name,
-                    "phone_number": b.passenger.phone_number,
-                    "is_verified": b.passenger.is_verified,
-                },
-            }
-            for b in bookings
-        ]
-        return Response(data)
+            })
+
+        return Response(list(merged.values()))
 
 
 # -------------------------
@@ -332,6 +351,7 @@ class MyPostedRidesView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
+        # No status filter — driver should see all their rides including cancelled ones
         rides = (
             Ride.objects
             .filter(driver=request.user)
@@ -354,3 +374,243 @@ class MyBookedRidesView(APIView):
         )
         rides = [b.ride for b in bookings]
         return Response(RideSerializer(rides, many=True).data)
+
+class RideEditView(APIView):
+    """
+    PATCH /api/rides/:ride_id/edit/
+    Only the ride's driver can edit. Protects against reducing seats below
+    the number already booked.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def patch(self, request, ride_id):
+        try:
+            ride = Ride.objects.prefetch_related('stops').get(
+                id=ride_id, driver=request.user
+            )
+        except Ride.DoesNotExist:
+            return Response({"error": "Ride not found or not authorized"}, status=404)
+
+        data = request.data
+
+        # Protect available_seats: cannot go below already-booked count
+        if 'available_seats' in data:
+            booked_seats = Booking.objects.filter(ride=ride).aggregate(
+                total=models.Sum('seats_booked')
+            )['total'] or 0
+            new_seats = int(data['available_seats'])
+            if new_seats < booked_seats:
+                return Response(
+                    {"error": f"Cannot reduce seats below {booked_seats} (already booked)."},
+                    status=400,
+                )
+
+        with transaction.atomic():
+            # Update scalar fields
+            editable_fields = [
+                'origin', 'origin_lat', 'origin_lng',
+                'destination', 'destination_lat', 'destination_lng',
+                'pickup_point', 'pickup_lat', 'pickup_lng',
+                'departure_datetime', 'car_model', 'license_plate',
+                'available_seats', 'price_per_seat',
+            ]
+            for field in editable_fields:
+                if field in data:
+                    setattr(ride, field, data[field] if data[field] != '' else None
+                            if field.endswith(('_lat', '_lng')) else data[field])
+            ride.save()
+
+            # Replace stops entirely if provided
+            if 'stops' in data:
+                ride.stops.all().delete()
+                for index, stop in enumerate(data['stops']):
+                    if stop.get('name'):
+                        RideStop.objects.create(
+                            ride=ride,
+                            name=stop['name'],
+                            lat=stop.get('lat') or None,
+                            lng=stop.get('lng') or None,
+                            order=index,
+                        )
+
+        updated = Ride.objects.prefetch_related('stops').get(id=ride_id)
+        bookings = Booking.objects.filter(ride=updated).select_related('passenger')
+        driver_name = f"{request.user.first_name} {request.user.last_name}".strip()
+        for booking in bookings:
+            create_and_push(
+                recipient=booking.passenger,
+                type_=Notification.TYPE_RIDE_EDITED,
+                title="Ride updated",
+                body=f"The ride from {updated.origin} to {updated.destination} has been updated by the driver. Please check the new details.",
+                ride=updated,
+                actor_name=driver_name,
+            )
+        return Response(RideSerializer(updated).data)
+
+class CancelRideView(APIView):
+    """Driver cancels their entire ride. Notifies all booked passengers."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request, ride_id):
+        try:
+            ride = Ride.objects.prefetch_related('bookings__passenger').get(
+                id=ride_id, driver=request.user
+            )
+        except Ride.DoesNotExist:
+            return Response({"error": "Ride not found or not authorized"}, status=404)
+
+        if ride.status == 'cancelled':
+            return Response({"error": "Ride is already cancelled"}, status=400)
+
+        ride.status = 'cancelled'
+        ride.save()
+
+        # Notify every passenger
+        driver_name = f"{request.user.first_name} {request.user.last_name}".strip()
+        for booking in ride.bookings.all():
+            create_and_push(
+                recipient=booking.passenger,
+                type_=Notification.TYPE_RIDE_CANCELLED,
+                title="Ride cancelled",
+                body=f"Your ride from {ride.origin} to {ride.destination} on "
+                     f"{ride.departure_datetime.strftime('%b %d at %H:%M')} "
+                     f"has been cancelled by the driver.",
+                ride=ride,
+                actor_name=driver_name,
+            )
+
+        # Broadcast status change to all WS clients
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            'ride_updates',
+            {
+                'type': 'broadcast_ride_cancelled',
+                'ride_id': str(ride.id),
+            },
+        )
+
+        return Response({"message": "Ride cancelled successfully"})
+
+
+class CancelPassengerView(APIView):
+    """Driver removes a single passenger from their ride."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request, ride_id, booking_id):
+        try:
+            ride = Ride.objects.get(id=ride_id, driver=request.user)
+        except Ride.DoesNotExist:
+            return Response({"error": "Ride not found or not authorized"}, status=404)
+
+        try:
+            booking = Booking.objects.select_related('passenger').get(
+                id=booking_id, ride=ride
+            )
+        except Booking.DoesNotExist:
+            return Response({"error": "Booking not found"}, status=404)
+
+        passenger = booking.passenger
+        seats_returned = booking.seats_booked
+
+        # Restore seats
+        ride.available_seats = F('available_seats') + seats_returned
+        ride.save()
+        ride.refresh_from_db()
+
+        booking.delete()
+
+        # Notify the removed passenger
+        driver_name = f"{request.user.first_name} {request.user.last_name}".strip()
+        create_and_push(
+            recipient=passenger,
+            type_=Notification.TYPE_RIDE_CANCELLED,
+            title="Booking cancelled by driver",
+            body=f"The driver has removed your booking on the ride from "
+                 f"{ride.origin} to {ride.destination}. "
+                 f"{seats_returned} seat{'s' if seats_returned > 1 else ''} "
+                 f"{'have' if seats_returned > 1 else 'has'} been released.",
+            ride=ride,
+            actor_name=driver_name,
+        )
+
+        # Broadcast updated seat count
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            'ride_updates',
+            {
+                'type': 'broadcast_seat_update',
+                'ride_id': str(ride.id),
+                'available_seats': ride.available_seats,
+            },
+        )
+
+        return Response({"message": "Passenger removed successfully"})
+
+class RideDetailView(APIView):
+    """REST fallback so RideDetailsPage can load on hard refresh."""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, ride_id):
+        try:
+            ride = Ride.objects.prefetch_related('stops').select_related('driver').get(id=ride_id)
+            return Response(RideSerializer(ride).data)
+        except Ride.DoesNotExist:
+            return Response({"error": "Ride not found"}, status=404)
+
+class ReactivateRideView(APIView):
+    """Driver reactivates a cancelled ride and notifies all affected passengers."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, ride_id):
+        try:
+            ride = Ride.objects.prefetch_related('bookings__passenger').get(
+                id=ride_id, driver=request.user
+            )
+        except Ride.DoesNotExist:
+            return Response({"error": "Ride not found or not authorized"}, status=404)
+
+        if ride.status == 'active':
+            return Response({"error": "Ride is already active"}, status=400)
+
+        if ride.departure_datetime <= timezone.now():
+            return Response(
+                {"error": "Cannot reactivate a ride whose departure time has passed"},
+                status=400,
+            )
+
+        ride.status = 'active'
+        ride.save()
+
+        updated = Ride.objects.prefetch_related('stops').get(id=ride.id)
+
+        # Notify all passengers who had bookings on this ride
+        driver_name = f"{request.user.first_name} {request.user.last_name}".strip()
+        notified = set()
+        for booking in ride.bookings.all():
+            passenger = booking.passenger
+            if str(passenger.id) in notified:
+                continue  # one notification per passenger
+            notified.add(str(passenger.id))
+            create_and_push(
+                recipient=passenger,
+                type_=Notification.TYPE_RIDE_EDITED,
+                title="Ride reactivated!",
+                body=f"Good news — the ride from {ride.origin} to {ride.destination} on "
+                     f"{ride.departure_datetime.strftime('%b %d at %H:%M')} "
+                     f"has been reactivated by the driver. Your booking is still valid.",
+                ride=updated,
+                actor_name=driver_name,
+            )
+
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            'ride_updates',
+            {
+                'type': 'broadcast_new_ride',
+                'data': RideSerializer(updated).data,
+            },
+        )
+
+        return Response(RideSerializer(updated).data)

@@ -57,11 +57,17 @@ export const RideProvider = ({ children }: { children: ReactNode }) => {
           // Confirmation back to the driver — don't add to rides list
           // The Rides page will refetch from REST on mount
           break;
-        case "broadcast_new_ride":
-          if (msg.data?.driver?.id !== currentUserId) {
-            setRides((prev) => [msg.data, ...prev]);
-          }
+        case "broadcast_new_ride": {
+          const currentUserId = getCurrentUserId();
+          // Skip if this ride was posted by the current user
+          if (msg.data?.driver?.id === currentUserId) break;
+          setRides((prev) => {
+            // Skip if this ride ID is already in the list (deduplication safety net)
+            if (prev.some((r) => r.id === msg.data.id)) return prev;
+            return [msg.data, ...prev];
+          });
           break;
+        }
         case "broadcast_seat_update":
           setRides((prev) =>
             prev.map((r) =>
@@ -70,6 +76,9 @@ export const RideProvider = ({ children }: { children: ReactNode }) => {
                 : r,
             ),
           );
+          break;
+        case "broadcast_ride_cancelled":
+          setRides((prev) => prev.filter((r) => r.id !== msg.ride_id));
           break;
         case "ERROR":
           setWsError(

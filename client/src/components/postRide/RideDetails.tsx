@@ -19,7 +19,7 @@ export const RideDetails = () => {
   const { formData, setFormData } = context;
 
   const priceNum = Number(formData.price_per_seat) || 0;
-  const commission = Math.round(priceNum * 0.05);
+  const commission = Math.round(priceNum * 0.1);
   const driverEarns = priceNum - commission;
 
   return (
@@ -112,8 +112,8 @@ export const RideDetails = () => {
         </HStack>
         {priceNum > 0 && (
           <Text fontSize="xs" color="fg.muted">
-            5% platform fee ({commission.toLocaleString()} RWF) applies. You
-            earn {driverEarns.toLocaleString()} RWF per seat.
+            10% platform fee applies and free cashout. You earn{" "}
+            {driverEarns.toLocaleString()} RWF per seat.
           </Text>
         )}
       </Flex>

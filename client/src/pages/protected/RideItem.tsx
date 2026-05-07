@@ -77,69 +77,6 @@ export const RideItem = ({
     >
       {/* Route */}
       <Flex px={5} pt={5} pb={4} justify="space-between" align="stretch">
-        {/* <Flex gap={3} flex={1} align="stretch">
-          <VStack gap={0} py="2px" align="center" flexShrink={0}>
-            <Box w="10px" h="10px" bg="blue.500" borderRadius="full" />
-            {ride.stops?.length > 0
-              ? ride.stops.map((stop) => (
-                  <React.Fragment key={stop.id}>
-                    <Box
-                      w="1.5px"
-                      bg={{ _light: "gray.200", _dark: "gray.700" }}
-                      minH="20px"
-                      my="3px"
-                    />
-                    <Box
-                      w="7px"
-                      h="7px"
-                      borderRadius="full"
-                      borderWidth={1.5}
-                      borderColor="blue.300"
-                      bg="bg.panel"
-                    />
-                  </React.Fragment>
-                ))
-              : null}
-            <Box
-              w="1.5px"
-              bg={{ _light: "gray.200", _dark: "gray.700" }}
-              flex={1}
-              my="3px"
-              minH="20px"
-            />
-            <Box w="11px" h="11px" bg="orange.500" borderRadius="full" />
-          </VStack>
-
-          <VStack align="start" gap={3} flex={1}>
-            <Box>
-              <Text fontSize="xs" fontWeight="500" color="gray.400" mb="2px">
-                From
-              </Text>
-              <Text fontSize="md" fontWeight="700">
-                {ride.origin}
-              </Text>
-            </Box>
-            {ride.stops?.map((stop) => (
-              <Box key={stop.id}>
-                <Text fontSize="xs" fontWeight="500" color="blue.400" mb="2px">
-                  Stop
-                </Text>
-                <Text fontSize="sm" fontWeight="600" color="fg.muted">
-                  {stop.name}
-                </Text>
-              </Box>
-            ))}
-            <Box>
-              <Text fontSize="xs" fontWeight="500" color="gray.400" mb="2px">
-                To
-              </Text>
-              <Text fontSize="md" fontWeight="700">
-                {ride.destination}
-              </Text>
-            </Box>
-          </VStack>
-        </Flex> */}
-
         <Flex gap="4" align="stretch">
           <VStack gap="0" align="center" py="1.5">
             <Box w="10px" h="10px" bg="blue.500" borderRadius="full" />
@@ -233,25 +170,27 @@ export const RideItem = ({
         // Posted by the logged-in user
         <Flex px={5} py={4} align="center" justify="space-between">
           <Badge
-            colorPalette="blue"
+            colorPalette={ride.status === "cancelled" ? "red" : "blue"}
             variant="subtle"
             borderRadius="full"
             px={3}
             py={1}
           >
-            Posted by you
+            {ride.status === "cancelled" ? "Cancelled by you" : "Posted by you"}
           </Badge>
-          <Button
-            variant="plain"
-            colorPalette="blue"
-            size="xs"
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/rides/${ride.id}`);
-            }}
-          >
-            Manage <LuChevronRight />
-          </Button>
+          {ride.status !== "cancelled" && (
+            <Button
+              variant="plain"
+              colorPalette="blue"
+              size="xs"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/rides/${ride.id}`);
+              }}
+            >
+              Manage <LuChevronRight />
+            </Button>
+          )}
         </Flex>
       ) : isBooked ? (
         // Booked — show driver contact

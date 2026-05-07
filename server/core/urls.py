@@ -24,5 +24,6 @@ urlpatterns = [
     path('api/users/', include('users.urls')),
     path('api/rides/', include('rides.urls')),
     path('api/locations/', LocationSearchView.as_view()),
-    path('api/location-details/', LocationDetailView.as_view())
+    path('api/location-details/', LocationDetailView.as_view()),
+    path('api/notifications/', include('notifications.urls')),
 ]

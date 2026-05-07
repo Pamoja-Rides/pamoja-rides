@@ -9,16 +9,13 @@ import {
   Box,
   Center,
   Heading,
-  HStack,
-  Icon,
   Skeleton,
   Tabs,
-  Text,
   VStack,
 } from "@chakra-ui/react";
 import axios from "axios";
 import { useEffect, useState } from "react";
-import { LuCar, LuShieldAlert, LuTicket } from "react-icons/lu";
+import { LuBan, LuCar, LuShieldAlert, LuTicket } from "react-icons/lu";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 
 const authHeader = () => ({
@@ -56,6 +53,8 @@ export const Rides = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.state?.refresh]);
 
+  const activePosted = postedRides.filter((r) => r.status !== "cancelled");
+  const cancelledRides = postedRides.filter((r) => r.status === "cancelled");
   const pendingCount = postedRides.filter(
     (r) => r.status === "pending_review",
   ).length;
@@ -68,8 +67,8 @@ export const Rides = () => {
 
       <Tabs.Root defaultValue={defaultTab} variant="enclosed" size="sm">
         <Center>
-          <Tabs.List w="85%" h={10}>
-            <Tabs.Trigger value="posted" w="1/2" h="100%">
+          <Tabs.List w="95%" h={10}>
+            <Tabs.Trigger value="posted" w="1/3" h="100%">
               <LuCar />
               Posted
               {pendingCount > 0 && (
@@ -85,17 +84,34 @@ export const Rides = () => {
                 </Badge>
               )}
             </Tabs.Trigger>
-            <Tabs.Trigger value="booked" w="1/2" h="100%">
+            <Tabs.Trigger value="booked" w="1/3" h="100%">
               <LuTicket />
               Booked
+            </Tabs.Trigger>
+            <Tabs.Trigger value="cancelled" w="1/3" h="100%">
+              <LuBan />
+              Cancelled
+              {cancelledRides.length > 0 && (
+                <Badge
+                  colorPalette="red"
+                  variant="solid"
+                  borderRadius="full"
+                  ml={1}
+                  px={1.5}
+                  fontSize="2xs"
+                >
+                  {cancelledRides.length}
+                </Badge>
+              )}
             </Tabs.Trigger>
           </Tabs.List>
         </Center>
 
+        {/* Posted tab */}
         <Tabs.Content value="posted">
           {loadingPosted ? (
             <RideSkeletons />
-          ) : postedRides.length === 0 ? (
+          ) : activePosted.length === 0 ? (
             <Empty
               title="No rides posted yet"
               desc="The rides you post will appear under this tab"
@@ -103,7 +119,7 @@ export const Rides = () => {
             />
           ) : (
             <VStack px={4} pt={4}>
-              {postedRides.map((ride) => (
+              {activePosted.map((ride) => (
                 <Box key={ride.id} w="full">
                   {ride.status === "pending_review" && (
                     <Alert.Root
@@ -133,6 +149,7 @@ export const Rides = () => {
           )}
         </Tabs.Content>
 
+        {/* Booked tab */}
         <Tabs.Content value="booked">
           {loadingBooked ? (
             <RideSkeletons />
@@ -149,6 +166,30 @@ export const Rides = () => {
                   key={ride.id}
                   ride={ride}
                   isOwnRide={false}
+                  onClick={() => navigate(`/rides/${ride.id}`)}
+                />
+              ))}
+            </VStack>
+          )}
+        </Tabs.Content>
+
+        {/* Cancelled tab */}
+        <Tabs.Content value="cancelled">
+          {loadingPosted ? (
+            <RideSkeletons />
+          ) : cancelledRides.length === 0 ? (
+            <Empty
+              title="No cancelled rides"
+              desc="Rides you cancel will appear here"
+              icon={<LuBan />}
+            />
+          ) : (
+            <VStack px={4} pt={4}>
+              {cancelledRides.map((ride) => (
+                <RideItem
+                  key={ride.id}
+                  ride={ride}
+                  isOwnRide
                   onClick={() => navigate(`/rides/${ride.id}`)}
                 />
               ))}

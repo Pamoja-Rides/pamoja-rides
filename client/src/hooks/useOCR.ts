@@ -43,7 +43,7 @@ export interface CrossCheckResult {
 // Prompts from the "New Version" as requested
 const NID_PROMPT = `You are a document verification expert for Rwanda. Analyze this image.
 
-1. Confirm this is a Rwanda National Identity Card (Indangamuntu / National Identity Card). If not, mark invalid.
+1. Confirm this is a Rwanda National Identity Card (Indangamuntu / National Identity Card). If not, mark invalid, but if you detect that it's a valid Driving license uploaded instead, mark it invalid but not tampered with and the validation note should be that it's the wrong document .
 2. Extract all visible fields accurately.
 3. Assess digital tampering: inconsistent fonts, blurred text edges, misaligned fields, color inconsistencies, AI generation artifacts.
 
@@ -64,7 +64,7 @@ Rules: If not a Rwanda NID, isValid=false. Unreadable fields = empty string. isT
 
 const LICENSE_PROMPT = `You are a document verification expert for Rwanda. Analyze this image.
 
-1. Confirm this is a Rwanda Driving License (Uruhushya rwo Gutwara Ibinyabiziga / Driving License). If not, mark invalid.
+1. Confirm this is a Rwanda Driving License (Uruhushya rwo Gutwara Ibinyabiziga / Driving License). If not, mark invalid, but if you detect that it's a valid National ID uploaded instead, mark it invalid but not tampered with and the validation note should be that it's the wrong document.
 2. Extract all visible fields accurately.
 3. Assess digital tampering: inconsistent fonts, blurred text edges, misaligned fields, color inconsistencies.
 4. Check expiry — note if expired in validationNote but still set isValid=true for a real (expired) document.

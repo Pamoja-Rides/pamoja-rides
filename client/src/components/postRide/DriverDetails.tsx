@@ -466,26 +466,7 @@ export const DriverDetails = () => {
                     ? "Identity verified — both documents match"
                     : "Identity mismatch — documents may belong to different people"}
                 </Text>
-                <Badge
-                  colorPalette={
-                    crossCheckResult.confidence === "high"
-                      ? "green"
-                      : crossCheckResult.confidence === "medium"
-                        ? "orange"
-                        : "red"
-                  }
-                  variant="subtle"
-                  ml="auto"
-                  borderRadius="full"
-                  px={2}
-                  fontSize="2xs"
-                >
-                  {crossCheckResult.confidence} confidence
-                </Badge>
               </HStack>
-              <Text fontSize="xs" color="fg.muted">
-                {crossCheckResult.note}
-              </Text>
             </Box>
           )}
         </>

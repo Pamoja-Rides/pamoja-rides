@@ -25,23 +25,37 @@ import {
   LuArrowLeft,
   LuCalendar,
   LuCar,
-  LuCheck,
+  LuCircleCheck,
   LuClock,
   LuLock,
   LuMessageCircle,
+  LuPencil,
   LuPhone,
+  LuRefreshCw,
+  LuTriangleAlert,
+  LuUserPlus,
   LuUsers,
+  LuUserX,
+  LuX,
 } from "react-icons/lu";
-import { RideContext, type RideStop } from "@/context/ride-context";
+import { RideContext, type Ride, type RideStop } from "@/context/ride-context";
 import { getCurrentUserId } from "@/utils/auth.util";
 import axios from "axios";
 import { baseUrl } from "@/main";
 import { toaster } from "@/components/ui/toaster";
 
-interface Passenger {
+interface PassengerBooking {
   booking_id: string;
-  seats_booked: number;
+  seats: number;
   booked_at: string;
+}
+
+interface Passenger {
+  booking_id: string; // primary booking id (for single cancel)
+  all_booking_ids: string[]; // all booking ids for this passenger
+  total_seats: number; // combined across all bookings
+  booked_at: string;
+  bookings: PassengerBooking[];
   passenger: {
     id: string;
     first_name: string;
@@ -52,36 +66,67 @@ interface Passenger {
 }
 
 export const RideDetailsPage = () => {
-  const { rideId } = useParams();
+  const { rideId } = useParams<{ rideId: string }>();
   const navigate = useNavigate();
   const rideContext = useContext(RideContext);
 
-  const rides = rideContext?.rides ?? [];
-  const sendWSMessage = rideContext?.sendWSMessage;
-  const isRideBooked = rideContext?.isRideBooked;
-  const bookRide = rideContext?.bookRide;
-  const refreshBookings = rideContext?.refreshBookings;
-
+  const [ride, setRide] = useState<Ride | null>(null);
+  const [loadingRide, setLoadingRide] = useState(true);
+  const [passengers, setPassengers] = useState<Passenger[]>([]);
+  const [loadingPassengers, setLoadingPassengers] = useState(false);
   const [isMapOpen, setIsMapOpen] = useState(false);
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [seats, setSeats] = useState(1);
   const [isBooking, setIsBooking] = useState(false);
   const [justBooked, setJustBooked] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [reactivating, setReactivating] = useState(false);
+  const [cancellingBookingId, setCancellingBookingId] = useState<string | null>(
+    null,
+  );
 
-  const [passengers, setPassengers] = useState<Passenger[]>([]);
-  const [loadingPassengers, setLoadingPassengers] = useState(false);
-
-  const ride =
-    rides.find((r) => r.id === rideId) ?? rideContext?.singleRide ?? null;
   const currentUserId = getCurrentUserId();
-  const isDriver = ride ? ride.driver.id === currentUserId : false;
-  const isBooked = isRideBooked?.(ride?.id ?? "") ?? false;
 
+  // ── Load ride ─────────────────────────────────────────────────────────────
+  // Strategy: try context first (instant if navigated from list),
+  // then fall back to REST (handles hard refresh / direct URL)
   useEffect(() => {
-    if (!ride && rideId && sendWSMessage) {
-      sendWSMessage("fetch_one", { ride_id: rideId });
+    if (!rideId) return;
+
+    // Check context first
+    const fromContext =
+      rideContext?.rides.find((r) => r.id === rideId) ??
+      rideContext?.singleRide ??
+      null;
+
+    if (fromContext) {
+      setRide(fromContext);
+      setLoadingRide(false);
+      return;
     }
-  }, [ride, rideId, sendWSMessage]);
+
+    // REST fallback — no spinner timeout needed
+    const token = localStorage.getItem("token");
+    axios
+      .get<Ride>(`${baseUrl}/rides/${rideId}/`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      .then((res) => setRide(res.data))
+      .catch(() => {}) // 404 — ride stays null, we show not-found below
+      .finally(() => setLoadingRide(false));
+  }, [rideId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Keep ride in sync with WS updates (seat count, status changes)
+  useEffect(() => {
+    if (!rideId || !rideContext) return;
+    const updated =
+      rideContext.rides.find((r) => r.id === rideId) ?? rideContext.singleRide;
+    if (updated) setRide(updated);
+  }, [rideContext?.rides, rideContext?.singleRide, rideId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Fetch passengers (driver only) ────────────────────────────────────────
+  const isDriver = ride ? ride.driver.id === currentUserId : false;
+  const isBooked = rideContext?.isRideBooked(ride?.id ?? "") ?? false;
 
   useEffect(() => {
     if (!isDriver || !rideId || !ride) return;
@@ -93,13 +138,13 @@ export const RideDetailsPage = () => {
       .then((res) => setPassengers(res.data))
       .catch(() => {})
       .finally(() => setLoadingPassengers(false));
-  }, [isDriver, rideId, ride]);
+  }, [isDriver, rideId, ride?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Actions ───────────────────────────────────────────────────────────────
   const handleConfirmBooking = async () => {
-    if (!rideId || !bookRide) return;
+    if (!rideId) return;
     setIsBooking(true);
     try {
-      // Use REST for booking to get proper error handling
       await axios.post(
         `${baseUrl}/rides/${rideId}/book/`,
         { seats },
@@ -107,7 +152,7 @@ export const RideDetailsPage = () => {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         },
       );
-      await refreshBookings?.();
+      await rideContext?.refreshBookings();
       setJustBooked(true);
       setIsBookingOpen(false);
       toaster.create({
@@ -115,17 +160,87 @@ export const RideDetailsPage = () => {
         description: `${seats} seat${seats > 1 ? "s" : ""} confirmed.`,
         type: "success",
       });
-    } catch (err: unknown) {
-      const message = axios.isAxiosError(err)
+    } catch (err) {
+      const msg = axios.isAxiosError(err)
         ? (err.response?.data?.error ?? "Booking failed")
         : "Booking failed";
-      toaster.create({ title: message, type: "error" });
+      toaster.create({ title: msg, type: "error" });
     } finally {
       setIsBooking(false);
     }
   };
 
-  if (!ride) {
+  const handleCancelRide = async () => {
+    if (!rideId) return;
+    setCancelling(true);
+    try {
+      await axios.post(
+        `${baseUrl}/rides/${rideId}/cancel/`,
+        {},
+        {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        },
+      );
+      setRide((prev) => (prev ? { ...prev, status: "cancelled" } : prev));
+      toaster.create({ title: "Ride cancelled", type: "success" });
+    } catch (err) {
+      const msg = axios.isAxiosError(err)
+        ? (err.response?.data?.error ?? "Failed to cancel ride")
+        : "Failed to cancel ride";
+      toaster.create({ title: msg, type: "error" });
+    } finally {
+      setCancelling(false);
+    }
+  };
+
+  const handleReactivate = async () => {
+    if (!rideId) return;
+    setReactivating(true);
+    try {
+      await axios.post(
+        `${baseUrl}/rides/${rideId}/reactivate/`,
+        {},
+        {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        },
+      );
+      setRide((prev) => (prev ? { ...prev, status: "active" } : prev));
+      toaster.create({ title: "Ride reactivated", type: "success" });
+    } catch (err) {
+      const msg = axios.isAxiosError(err)
+        ? (err.response?.data?.error ?? "Failed to reactivate ride")
+        : "Failed to reactivate ride";
+      toaster.create({ title: msg, type: "error" });
+    } finally {
+      setReactivating(false);
+    }
+  };
+
+  const handleCancelPassenger = async (bookingId: string) => {
+    if (!rideId) return;
+    setCancellingBookingId(bookingId);
+    try {
+      await axios.post(
+        `${baseUrl}/rides/${rideId}/passengers/${bookingId}/cancel/`,
+        {},
+        {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        },
+      );
+      setPassengers((prev) => prev.filter((b) => b.booking_id !== bookingId));
+      toaster.create({ title: "Passenger removed", type: "success" });
+    } catch (err) {
+      const msg = axios.isAxiosError(err)
+        ? (err.response?.data?.error ?? "Failed to remove passenger")
+        : "Failed to remove passenger";
+      toaster.create({ title: msg, type: "error" });
+    } finally {
+      setCancellingBookingId(null);
+    }
+  };
+
+  // ── Loading / not found ───────────────────────────────────────────────────
+  if (loadingRide) {
     return (
       <Flex h="100vh" align="center" justify="center">
         <Spinner color="blue.500" size="lg" />
@@ -133,7 +248,25 @@ export const RideDetailsPage = () => {
     );
   }
 
+  if (!ride) {
+    return (
+      <Flex
+        h="100vh"
+        align="center"
+        justify="center"
+        direction="column"
+        gap={4}
+      >
+        <Text color="fg.muted">Ride not found.</Text>
+        <Button colorPalette="blue" onClick={() => navigate(-1)}>
+          Go back
+        </Button>
+      </Flex>
+    );
+  }
+
   const stops: RideStop[] = ride.stops ?? [];
+  const isCancelled = ride.status === "cancelled";
   const departureDate = new Date(ride.departure_datetime);
   const dateLabel = departureDate.toLocaleDateString("en-US", {
     month: "short",
@@ -147,7 +280,7 @@ export const RideDetailsPage = () => {
   const initials =
     `${ride.driver.first_name[0] ?? ""}${ride.driver.last_name?.[0] ?? ""}`.toUpperCase();
   const pricePerSeat = Number(ride.price_per_seat);
-  const totalPrice = pricePerSeat * seats;
+  const totalPrice = pricePerSeat * seats + 500;
 
   const handleCall = () => {
     if (ride.driver.phone_number)
@@ -168,23 +301,56 @@ export const RideDetailsPage = () => {
       {/* Header */}
       <Box
         bgGradient="to-r"
-        gradientFrom="blue.600"
-        gradientTo="blue.500"
+        gradientFrom={isCancelled ? "gray.500" : "blue.600"}
+        gradientTo={isCancelled ? "gray.400" : "blue.500"}
         color="white"
         pt="3rem"
         pb={20}
       >
         <Container maxW="container.md">
-          <Flex mb={10}>
+          <Flex mb={10} justify="space-between" align="center">
             <IconButton
               borderRadius="full"
-              bg="blue.500"
-              color={"white"}
+              bg={isCancelled ? "gray.600" : "blue.500"}
               onClick={() => navigate(-1)}
             >
               <LuArrowLeft />
             </IconButton>
+            {isDriver && !isCancelled && (
+              <Button
+                size="sm"
+                variant="ghost"
+                color="white"
+                _hover={{ bg: "blue.500" }}
+                onClick={() => navigate(`/rides/${rideId}/edit`)}
+              >
+                <LuPencil />
+                Edit Ride
+              </Button>
+            )}
           </Flex>
+
+          {/* Cancelled banner in header */}
+          {isCancelled && (
+            <HStack
+              bg="whiteAlpha.200"
+              borderRadius="xl"
+              px={4}
+              py={2}
+              mb={4}
+              gap={2}
+            >
+              <Icon>
+                <LuTriangleAlert />
+              </Icon>
+              <Text fontSize="sm" fontWeight="600">
+                {isDriver
+                  ? "You cancelled this ride"
+                  : "This ride has been cancelled by the driver"}
+              </Text>
+            </HStack>
+          )}
+
           <Flex gap="4" align="stretch">
             <VStack gap="0" align="center" py="1.5">
               <Box w="10px" h="10px" bg="white" borderRadius="full" />
@@ -273,13 +439,13 @@ export const RideDetailsPage = () => {
           <StatItem
             icon={<LuUsers size={20} />}
             label="Seats"
-            value={`${ride.available_seats} left`}
+            value={isCancelled ? "—" : `${ride.available_seats} left`}
             iconBg={{ _light: "orange.100", _dark: "orange.800" }}
             iconColor="#D97706"
           />
         </HStack>
 
-        {/* Driver view: passengers */}
+        {/* ── DRIVER VIEW ──────────────────────────────────────────────────── */}
         {isDriver ? (
           <Box bg="bg.panel" p="6" borderRadius="3xl" shadow="lg">
             <HStack justify="space-between" mb={5}>
@@ -287,14 +453,15 @@ export const RideDetailsPage = () => {
                 Passengers
               </Text>
               <Badge
-                colorPalette="blue"
+                colorPalette={isCancelled ? "red" : "blue"}
                 variant="subtle"
                 borderRadius="full"
                 px={3}
               >
-                {passengers.length} booked
+                {isCancelled ? "Cancelled" : `${passengers.length} booked`}
               </Badge>
             </HStack>
+
             {loadingPassengers ? (
               <Center py={8}>
                 <Spinner color="blue.500" />
@@ -312,78 +479,124 @@ export const RideDetailsPage = () => {
               </Center>
             ) : (
               <VStack gap={0}>
-                {passengers.map((booking, index) => (
-                  <React.Fragment key={booking.booking_id}>
-                    <Flex w="full" align="center" gap={4} py={4}>
-                      <Avatar.Root size="md" bg="blue.600">
-                        <Avatar.Fallback color="white" fontWeight="700">
-                          {`${booking.passenger.first_name[0]}${booking.passenger.last_name[0]}`.toUpperCase()}
-                        </Avatar.Fallback>
-                      </Avatar.Root>
-                      <VStack align="start" gap={0} flex={1}>
-                        <HStack gap={2}>
-                          <Text fontWeight="700" fontSize="md">
-                            {booking.passenger.first_name}{" "}
-                            {booking.passenger.last_name}
+                {passengers.map((booking, index) => {
+                  const hasMultipleBookings = booking.bookings.length > 1;
+
+                  return (
+                    <React.Fragment key={booking.passenger.id}>
+                      <Flex w="full" align="center" gap={4} py={4}>
+                        <Avatar.Root size="md" bg="blue.600">
+                          <Avatar.Fallback color="white" fontWeight="700">
+                            {`${booking.passenger.first_name[0]}${booking.passenger.last_name[0]}`.toUpperCase()}
+                          </Avatar.Fallback>
+                        </Avatar.Root>
+
+                        <VStack align="start" gap={0} flex={1}>
+                          <HStack gap={2}>
+                            <Text fontWeight="700" fontSize="md">
+                              {booking.passenger.first_name}{" "}
+                              {booking.passenger.last_name}
+                            </Text>
+                            {booking.passenger.is_verified && (
+                              <Badge
+                                colorPalette="green"
+                                variant="subtle"
+                                size="sm"
+                              >
+                                Verified
+                              </Badge>
+                            )}
+                          </HStack>
+                          <Text fontSize="sm" color="fg.muted">
+                            {booking.passenger.phone_number}
                           </Text>
-                          {booking.passenger.is_verified && (
-                            <Badge
-                              colorPalette="green"
-                              variant="subtle"
+
+                          {/* Seat summary */}
+                          <HStack gap={2} mt={0.5} flexWrap="wrap">
+                            <Text fontSize="xs" color="fg.subtle">
+                              {booking.total_seats} seat
+                              {booking.total_seats !== 1 ? "s" : ""} total
+                            </Text>
+                            {hasMultipleBookings && (
+                              <>
+                                <Text fontSize="xs" color="fg.subtle">
+                                  ·
+                                </Text>
+                                {booking.bookings.map((b, i) => (
+                                  <Badge
+                                    key={b.booking_id}
+                                    colorPalette="blue"
+                                    variant="subtle"
+                                    fontSize="2xs"
+                                    borderRadius="full"
+                                    px={2}
+                                  >
+                                    {i === 0
+                                      ? `${b.seats} original`
+                                      : `+${b.seats} added`}
+                                  </Badge>
+                                ))}
+                              </>
+                            )}
+                          </HStack>
+                        </VStack>
+
+                        <HStack gap={2}>
+                          <IconButton
+                            aria-label="Call passenger"
+                            size="sm"
+                            borderRadius="full"
+                            colorPalette="blue"
+                            variant="outline"
+                            onClick={() => {
+                              window.location.href = `tel:${booking.passenger.phone_number}`;
+                            }}
+                          >
+                            <LuPhone />
+                          </IconButton>
+                          <IconButton
+                            aria-label="WhatsApp passenger"
+                            size="sm"
+                            borderRadius="full"
+                            colorPalette="blue"
+                            variant="outline"
+                            onClick={() => {
+                              const p = booking.passenger.phone_number?.replace(
+                                /\D/g,
+                                "",
+                              );
+                              if (p)
+                                window.open(`https://wa.me/${p}`, "_blank");
+                            }}
+                          >
+                            <LuMessageCircle />
+                          </IconButton>
+                          {!isCancelled && (
+                            <IconButton
+                              aria-label="Remove passenger"
                               size="sm"
+                              borderRadius="full"
+                              colorPalette="red"
+                              variant="outline"
+                              loading={
+                                cancellingBookingId === booking.booking_id
+                              }
+                              onClick={() =>
+                                handleCancelPassenger(booking.booking_id)
+                              }
                             >
-                              Verified
-                            </Badge>
+                              <LuUserX />
+                            </IconButton>
                           )}
                         </HStack>
-                        <Text fontSize="sm" color="fg.muted">
-                          {booking.passenger.phone_number}
-                        </Text>
-                        <Text fontSize="xs" color="fg.subtle">
-                          {booking.seats_booked} seat
-                          {booking.seats_booked !== 1 ? "s" : ""} ·{" "}
-                          {new Date(booking.booked_at).toLocaleDateString(
-                            "en-US",
-                            { month: "short", day: "numeric" },
-                          )}
-                        </Text>
-                      </VStack>
-                      <HStack gap={2}>
-                        <IconButton
-                          aria-label="Call"
-                          size="sm"
-                          borderRadius="full"
-                          colorPalette="blue"
-                          variant="outline"
-                          onClick={() => {
-                            window.location.href = `tel:${booking.passenger.phone_number}`;
-                          }}
-                        >
-                          <LuPhone />
-                        </IconButton>
-                        <IconButton
-                          aria-label="WhatsApp"
-                          size="sm"
-                          borderRadius="full"
-                          colorPalette="blue"
-                          variant="outline"
-                          onClick={() => {
-                            const p = booking.passenger.phone_number?.replace(
-                              /\D/g,
-                              "",
-                            );
-                            if (p) window.open(`https://wa.me/${p}`, "_blank");
-                          }}
-                        >
-                          <LuMessageCircle />
-                        </IconButton>
-                      </HStack>
-                    </Flex>
-                    {index < passengers.length - 1 && <Separator />}
-                  </React.Fragment>
-                ))}
+                      </Flex>
+                      {index < passengers.length - 1 && <Separator />}
+                    </React.Fragment>
+                  );
+                })}
               </VStack>
             )}
+
             <Separator mt={4} mb={4} />
             <HStack gap={2} color="fg.muted">
               <Icon boxSize={4}>
@@ -404,15 +617,60 @@ export const RideDetailsPage = () => {
                 {ride.pickup_point} — View on map
               </Link>
             </HStack>
+
+            {isCancelled ? (
+              <Box
+                mt={5}
+                w="full"
+                bg="red.50"
+                _dark={{ bg: "red.950" }}
+                borderRadius="xl"
+                p={4}
+              >
+                <VStack gap={3}>
+                  <Text
+                    fontWeight="600"
+                    color="red.600"
+                    fontSize="sm"
+                    textAlign="center"
+                  >
+                    This ride has been cancelled
+                  </Text>
+                  <Button
+                    w="full"
+                    colorPalette="blue"
+                    borderRadius="xl"
+                    loading={reactivating}
+                    onClick={handleReactivate}
+                  >
+                    <LuRefreshCw />
+                    Reactivate this ride
+                  </Button>
+                </VStack>
+              </Box>
+            ) : (
+              <Button
+                w="full"
+                mt={5}
+                colorPalette="red"
+                variant="outline"
+                borderRadius="2xl"
+                loading={cancelling}
+                onClick={handleCancelRide}
+              >
+                <LuX />
+                Cancel this ride
+              </Button>
+            )}
           </Box>
         ) : (
-          // Passenger view
+          // ── PASSENGER VIEW ──────────────────────────────────────────────────
           <Box bg="bg.panel" p="6" borderRadius="3xl" shadow="lg">
             <Text fontWeight="800" fontSize="lg" mb="5">
               Driver
             </Text>
             <Flex gap="4" mb="6">
-              <Avatar.Root size="lg" bg="blue.600">
+              <Avatar.Root size="lg" bg={isCancelled ? "gray.400" : "blue.600"}>
                 <Avatar.Fallback color="white" fontWeight="700">
                   {initials}
                 </Avatar.Fallback>
@@ -427,13 +685,25 @@ export const RideDetailsPage = () => {
                     {ride.car_model} · {ride.license_plate}
                   </Text>
                 </HStack>
+                <HStack gap={2} mt={1}>
+                  <Text fontSize="sm" color="fg.muted">
+                    Pickup:
+                  </Text>
+                  <Link
+                    color="blue.500"
+                    fontSize="sm"
+                    cursor="pointer"
+                    onClick={() => setIsMapOpen(true)}
+                  >
+                    View on map
+                  </Link>
+                </HStack>
               </VStack>
-              {/* Price badge */}
               <VStack align="end" gap={0}>
                 <Text
                   fontSize="2xl"
                   fontWeight="800"
-                  color="blue.600"
+                  color={isCancelled ? "gray.400" : "blue.600"}
                   lineHeight="1"
                 >
                   {pricePerSeat.toLocaleString()}
@@ -446,7 +716,6 @@ export const RideDetailsPage = () => {
 
             <Separator mb={5} />
 
-            {/* Pickup address */}
             <Box bg="bg" borderRadius="xl" p={4} mb={5}>
               <Text fontSize="xs" color="fg.muted" mb={1}>
                 Pickup point
@@ -454,18 +723,39 @@ export const RideDetailsPage = () => {
               <Text fontSize="sm" fontWeight="500">
                 {ride.pickup_point}
               </Text>
-              <Link
-                color="blue.500"
-                fontSize="sm"
-                cursor="pointer"
-                onClick={() => setIsMapOpen(true)}
-              >
-                View on map
-              </Link>
             </Box>
 
-            {/* Booked state — show contact */}
-            {isBooked || justBooked ? (
+            {/* ── Cancelled state — passenger ──────────────────────── */}
+            {isCancelled ? (
+              <Box
+                w="full"
+                bg="red.50"
+                _dark={{ bg: "red.950" }}
+                borderRadius="xl"
+                p={5}
+                borderWidth={1}
+                borderColor={{ _light: "red.200", _dark: "red.800" }}
+              >
+                <HStack gap={3} mb={2}>
+                  <Icon color="red.500" boxSize={5}>
+                    <LuTriangleAlert />
+                  </Icon>
+                  <Text
+                    fontWeight="700"
+                    color="red.600"
+                    _dark={{ color: "red.400" }}
+                    fontSize="sm"
+                  >
+                    This ride has been cancelled
+                  </Text>
+                </HStack>
+                <Text fontSize="xs" color="fg.muted">
+                  The driver cancelled this ride. If you had a booking, please
+                  arrange alternative transport. Check your notifications for
+                  details.
+                </Text>
+              </Box>
+            ) : isBooked || justBooked ? (
               <VStack gap={4}>
                 <HStack
                   w="full"
@@ -476,7 +766,7 @@ export const RideDetailsPage = () => {
                   gap={3}
                 >
                   <Icon color="green.500" boxSize={5}>
-                    <LuCheck />
+                    <LuCircleCheck />
                   </Icon>
                   <VStack align="start" gap={0}>
                     <Text
@@ -507,8 +797,7 @@ export const RideDetailsPage = () => {
                     variant="ghost"
                     onClick={handleCall}
                   >
-                    <LuPhone size={18} />
-                    Call Driver
+                    <LuPhone size={18} /> Call Driver
                   </Button>
                   <Button
                     flex={1}
@@ -520,10 +809,41 @@ export const RideDetailsPage = () => {
                     variant="ghost"
                     onClick={handleWhatsApp}
                   >
-                    <LuMessageCircle size={18} />
-                    WhatsApp
+                    <LuMessageCircle size={18} /> WhatsApp
                   </Button>
                 </HStack>
+                {ride.available_seats > 0 && (
+                  <Box
+                    w="full"
+                    bg="bg"
+                    borderRadius="xl"
+                    borderWidth={1}
+                    borderColor="border"
+                    p={4}
+                  >
+                    <HStack justify="space-between" align="center">
+                      <VStack align="start" gap={0}>
+                        <Text fontWeight="600" fontSize="sm">
+                          Travelling with someone?
+                        </Text>
+                        <Text fontSize="xs" color="fg.muted">
+                          {ride.available_seats} seat
+                          {ride.available_seats !== 1 ? "s" : ""} still
+                          available
+                        </Text>
+                      </VStack>
+                      <Button
+                        size="sm"
+                        colorPalette="blue"
+                        borderRadius="xl"
+                        onClick={() => setIsBookingOpen(true)}
+                      >
+                        <LuUserPlus />
+                        Add seats
+                      </Button>
+                    </HStack>
+                  </Box>
+                )}
               </VStack>
             ) : ride.available_seats === 0 ? (
               <Box
@@ -570,7 +890,7 @@ export const RideDetailsPage = () => {
         )}
       </Container>
 
-      {/* Booking confirmation drawer */}
+      {/* Booking drawer */}
       <Drawer.Root
         open={isBookingOpen}
         onOpenChange={(e) => !e.open && setIsBookingOpen(false)}
@@ -593,7 +913,6 @@ export const RideDetailsPage = () => {
               </Drawer.Header>
               <Drawer.Body pb={6}>
                 <VStack gap={5}>
-                  {/* Route summary */}
                   <Box w="full" bg="bg" borderRadius="xl" p={4}>
                     <HStack gap={3}>
                       <VStack gap={0} align="center" flexShrink={0}>
@@ -630,8 +949,6 @@ export const RideDetailsPage = () => {
                       </Text>
                     </HStack>
                   </Box>
-
-                  {/* Driver */}
                   <HStack w="full" gap={3} bg="bg" borderRadius="xl" p={4}>
                     <Avatar.Root size="md" bg="blue.600">
                       <Avatar.Fallback color="white" fontWeight="700">
@@ -647,8 +964,6 @@ export const RideDetailsPage = () => {
                       </Text>
                     </VStack>
                   </HStack>
-
-                  {/* Seat selector */}
                   <HStack
                     w="full"
                     justify="space-between"
@@ -674,8 +989,6 @@ export const RideDetailsPage = () => {
                       <NumberInput.Input />
                     </NumberInput.Root>
                   </HStack>
-
-                  {/* Price breakdown */}
                   <Box
                     w="full"
                     bg="blue.50"
@@ -705,12 +1018,11 @@ export const RideDetailsPage = () => {
                       <HStack justify="space-between">
                         <Text fontWeight="700">Total</Text>
                         <Text fontWeight="800" fontSize="xl" color="blue.600">
-                          {(pricePerSeat * seats + 500).toLocaleString()} RWF
+                          {totalPrice.toLocaleString()} RWF
                         </Text>
                       </HStack>
                     </VStack>
                   </Box>
-
                   <Button
                     w="full"
                     size="lg"
@@ -719,8 +1031,7 @@ export const RideDetailsPage = () => {
                     loading={isBooking}
                     onClick={handleConfirmBooking}
                   >
-                    Confirm — Pay{" "}
-                    {(pricePerSeat * seats + 500).toLocaleString()} RWF
+                    Confirm — Pay {totalPrice.toLocaleString()} RWF
                   </Button>
                   <Text fontSize="xs" color="fg.subtle" textAlign="center">
                     Includes 500 RWF service fee · Ride payment collected by

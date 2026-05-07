@@ -156,7 +156,7 @@ const PostRideInner = () => {
     : "—";
 
   const priceNum = Number(formData?.price_per_seat) || 0;
-  const commission = Math.round(priceNum * 0.05);
+  const commission = Math.round(priceNum * 0.1);
   const driverEarns = priceNum - commission;
 
   return (
@@ -336,10 +336,10 @@ const PostRideInner = () => {
                   </HStack>
                   <HStack justify="space-between">
                     <Text fontSize="xs" color="fg.subtle">
-                      Platform fee (5%)
+                      Platform fee
                     </Text>
                     <Text fontSize="xs" color="fg.subtle">
-                      - {commission.toLocaleString()} RWF
+                      - 10%
                     </Text>
                   </HStack>
                   <HStack justify="space-between">
