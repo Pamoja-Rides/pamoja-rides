@@ -96,10 +96,10 @@ export const Home = () => {
   }, [rides, userCoords, bookedRideIds]);
 
   const sectionTitle = locationDenied
-    ? "Available Rides"
+    ? t("homePage.availableRidesSection.availableRides")
     : userCoords
-      ? "Available Rides Near Me"
-      : "Available Rides";
+      ? t("homePage.availableRidesSection.availableRidesNearMe")
+      : t("homePage.availableRidesSection.availableRides");
 
   return (
     <Box position="relative">
@@ -137,12 +137,14 @@ export const Home = () => {
               locationDenied ? <LuSquareDashedMousePointer /> : <LuMapPin />
             }
             title={
-              locationDenied ? t("homePage.empty.title") : "No rides near you"
+              locationDenied
+                ? t("homePage.empty.title")
+                : t("homePage.availableRidesSection.noRides")
             }
             desc={
               locationDenied
                 ? t("homePage.empty.description")
-                : "There are no rides starting within 50km of your location"
+                : t("homePage.availableRidesSection.noRidesWithin50km")
             }
           />
         ) : (
@@ -151,7 +153,7 @@ export const Home = () => {
               <Heading size="md">{sectionTitle}</Heading>
               {userCoords && !locationDenied && (
                 <Text fontSize="xs" color="fg.muted">
-                  · within 50km
+                  · {t("homePage.availableRidesSection.within50km")}
                 </Text>
               )}
             </Flex>

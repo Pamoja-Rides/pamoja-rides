@@ -55,7 +55,14 @@
         "title": "No rides available",
         "description": "There are no available rides. You can post a ride to get started"
       },
-      "searchBtn": "Find a ride"
+      "searchBtn": "Find a ride",
+      "availableRidesSection": {
+        "availableRides": "Available Rides",
+        "availableRidesNearMe": "Available Rides Near Me",
+        "noRides": "No rides near you",
+        "noRidesWithin50km": "There are no rides starting within 50km of your location",
+        "within50km": "within 50km"
+      }
     },
     "bottomTabs": {
       "accountMenu": {

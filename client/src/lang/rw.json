@@ -55,7 +55,14 @@
         "title": "Nta ngendo zabonetse",
         "description": "Nta ngendo zabonetse. Ushobora gutangiza urugendo rushya"
       },
-      "searchBtn": "Shakisha urugendo"
+      "searchBtn": "Shakisha urugendo",
+      "availableRidesSection": {
+        "availableRides": "Ingendo ziboneka",
+        "availableRidesNearMe": "Ingendo ziboneka hafi yawe",
+        "noRides": "Nta ngendo ziri hafi yawe",
+        "noRidesWithin50km": "Nta ngendo zitangirira mu ntera ya kilometero 50 uvuye aho uherereye",
+        "within50km": "mu birometero 50"
+      }
     },
     "bottomTabs": {
       "accountMenu": {
