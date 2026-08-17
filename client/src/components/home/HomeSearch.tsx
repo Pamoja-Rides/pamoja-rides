@@ -1,12 +1,25 @@
-import { Button, Circle, Input, InputGroup, Stack } from "@chakra-ui/react";
+import { Button, Circle, Stack } from "@chakra-ui/react";
 import { LuSearch } from "react-icons/lu";
 import { useTranslation } from "react-i18next";
-import { DateCalendar } from "../common";
+import { DateCalendar, LocationComboBox } from "../common";
+import { useState } from "react";
+import { useNavigate } from "react-router";
+import type { LocationOption } from "@/types/location";
 
 export const HomeSearch = () => {
   const { t } = useTranslation();
-  const originDot = "blue.500";
-  const destDot = "orange.500";
+  const navigate = useNavigate();
+
+  const [fromLocation, setFromLocation] = useState<LocationOption | null>(null);
+  const [toLocation, setToLocation] = useState<LocationOption | null>(null);
+
+  const handleSearch = () => {
+    const params = new URLSearchParams();
+    if (fromLocation?.name) params.set("origin", fromLocation.name);
+    if (toLocation?.name) params.set("destination", toLocation.name);
+    navigate(`/search?${params.toString()}`);
+  };
+
   return (
     <Stack
       bg="bg.panel"
@@ -15,27 +28,21 @@ export const HomeSearch = () => {
       shadow="lg"
       gap={6}
       align="stretch"
+      mb={5}
     >
-      <InputGroup
-        startElement={<Circle size={3} bg={originDot} ml={1} />}
-        colorPalette={"blue"}
-      >
-        <Input
-          placeholder={t("homePage.placeholders.from")}
-          size={"md"}
-          p={6}
-        />
-      </InputGroup>
-
-      <InputGroup
-        startElement={<Circle size={3} bg={destDot} ml={1} />}
-        colorPalette={"blue"}
-      >
-        <Input placeholder={t("homePage.placeholders.to")} size={"md"} p={6} />
-      </InputGroup>
-
+      <LocationComboBox
+        placeholder={t("homePage.placeholders.from")}
+        value={fromLocation?.name ?? ""}
+        startElement={<Circle size={3} bg="blue.500" ml={1} />}
+        onSelect={setFromLocation}
+      />
+      <LocationComboBox
+        placeholder={t("homePage.placeholders.to")}
+        value={toLocation?.name ?? ""}
+        startElement={<Circle size={3} bg="orange.500" ml={1} />}
+        onSelect={setToLocation}
+      />
       <DateCalendar />
-
       <Button
         size="lg"
         colorPalette="blue"
@@ -43,6 +50,7 @@ export const HomeSearch = () => {
         width="full"
         justifyContent="center"
         gap={3}
+        onClick={handleSearch}
       >
         <LuSearch size={18} />
         {t("homePage.searchBtn")}

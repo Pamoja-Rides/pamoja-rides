@@ -1,13 +1,22 @@
-import { Box, Flex, Grid, Icon, Menu, Portal } from "@chakra-ui/react";
+import {
+  Box,
+  Flex,
+  Grid,
+  Icon,
+  Menu,
+  Portal,
+  Text,
+  VStack,
+} from "@chakra-ui/react";
 import { useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
   LuCar,
   LuCirclePlus,
-  LuCoins,
   LuHouse,
   LuSearch,
   LuUser,
+  LuWallet,
 } from "react-icons/lu";
 import { NavLink, useNavigate } from "react-router";
 
@@ -74,14 +83,21 @@ const TabItem = ({
   isActiveLink: boolean;
 }) => (
   <>
-    <Flex
-      bg={isActiveLink ? "blue.emphasized" : "transparent"}
-      p={3}
-      marginInline={"10%"}
-      borderRadius={"full"}
-      justifyContent={"center"}
-    >
-      <Icon>{tabItem.icon}</Icon>
+    <Flex justifyContent={"center"}>
+      <VStack>
+        <Box
+          bg={isActiveLink ? "blue.emphasized" : "transparent"}
+          px={4}
+          py={2}
+          marginInline={"10%"}
+          borderRadius={"full"}
+        >
+          <Icon color={isActiveLink ? "fg.info" : "fg"}>{tabItem.icon}</Icon>
+        </Box>
+        <Text textStyle={"xs"} color={isActiveLink ? "blue.500" : "fg.muted"}>
+          {tabItem.text}
+        </Text>
+      </VStack>
     </Flex>
   </>
 );
@@ -108,12 +124,16 @@ const AccountMenu = ({
         <Menu.Positioner>
           <Menu.Content>
             <Menu.Item value="cut">
-              <LuCoins />
-              <Box flex="1">{t("bottomTabs.accountMenu.payments")}</Box>
+              <LuWallet />
+              <Box flex="1" onClick={() => navigate("/earnings")}>
+                {t("bottomTabs.accountMenu.payments")}
+              </Box>
             </Menu.Item>
             <Menu.Item value="copy">
               <LuUser />
-              <Box flex="1">{t("bottomTabs.accountMenu.profile")}</Box>
+              <Box flex="1" onClick={() => navigate("/profile")}>
+                {t("bottomTabs.accountMenu.profile")}
+              </Box>
             </Menu.Item>
             <Menu.Item
               value="log out"

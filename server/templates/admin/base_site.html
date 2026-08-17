@@ -1,0 +1,24 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{{ title }} | Pamoja Rides Admin{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+<link rel="stylesheet" href="/static/admin/css/custom.css" />
+<link rel="icon" type="image/svg+xml" href="/static/admin/img/logo.svg" />
+{% endblock %}
+
+{% block branding %}
+<div class="pamoja-brand">
+  <span class="pamoja-brand-mark">
+    <img src="/static/admin/img/logo.svg" alt="Pamoja Rides" />
+  </span>
+  <a href="{% url 'admin:index' %}" class="pamoja-brand-text">
+    Pamoja Rides
+    <span class="pamoja-brand-sub">Admin</span>
+  </a>
+</div>
+{% endblock %}

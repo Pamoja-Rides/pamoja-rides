@@ -1,0 +1,65 @@
+/* ── Pamoja Rides branding ─────────────────────────────────────── */
+.pamoja-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pamoja-brand-mark {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+.pamoja-brand-mark img {
+  width: 22px;
+  height: auto;
+  display: block;
+}
+
+.pamoja-brand-text {
+  font-size: 16px;
+  font-weight: 800;
+  color: #ffffff;
+  text-decoration: none;
+  letter-spacing: -0.3px;
+  line-height: 1;
+}
+
+.pamoja-brand-sub {
+  font-size: 10px;
+  font-weight: 500;
+  opacity: 0.65;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+/* Dark theme — header background changes, so the brand text needs
+   to stay readable; the white mark pill stays identical in both
+   themes since it's the thing giving the blue logo consistent contrast. */
+.dark .pamoja-brand-text {
+  color: #f9fafb;
+}
+
+.dark .pamoja-brand-mark {
+  background: #ffffff; /* unchanged on purpose */
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+/* If Unfold renders the branding slot on a light header in light mode
+   (rather than always-dark), this keeps text legible there too. */
+:not(.dark) .pamoja-brand-text {
+  color: #111827;
+}
+
+@media (prefers-color-scheme: dark) {
+  .pamoja-brand-text {
+    color: #f9fafb;
+  }
+}

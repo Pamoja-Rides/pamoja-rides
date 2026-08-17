@@ -55,7 +55,14 @@
         "title": "Aucun trajet disponible",
         "description": "Il n'y a pas de trajets disponibles. Vous pouvez publier un trajet pour commencer"
       },
-      "searchBtn": "Trouver un trajet"
+      "searchBtn": "Trouver un trajet",
+      "availableRidesSection": {
+        "availableRides": "Trajets disponibles",
+        "availableRidesNearMe": "Trajets disponibles près de chez vous",
+        "noRides": "Aucun trajet près de chez vous",
+        "noRidesWithin50km": "Aucun trajet ne part dans un rayon de 50 km de votre position",
+        "within50km": "à moins de 50 km"
+      }
     },
     "bottomTabs": {
       "accountMenu": {

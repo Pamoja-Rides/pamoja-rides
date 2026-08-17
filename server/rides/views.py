@@ -1,0 +1,731 @@
+import os
+from django.db import models
+import requests
+from django.conf import settings
+from django.db import transaction
+from django.db.models import F
+from django.utils import timezone
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status, permissions
+
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
+
+from .models import Ride, DriverProfile, Booking, RideStop
+from .serializers import RideSerializer, RideCreateSerializer, RideStopSerializer
+from dotenv import load_dotenv
+from notifications.utils import create_and_push
+from notifications.models import Notification
+
+# Load .env
+load_dotenv()
+
+
+# -------------------------
+# EXISTING (UNCHANGED CORE)
+# -------------------------
+class RideListCreateView(APIView):
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    def get(self, request):
+        qs = Ride.objects.filter(
+            status='active',
+            departure_datetime__gt=timezone.now(),
+        ).prefetch_related('stops')
+        if request.user.is_authenticated:
+            qs = qs.exclude(driver=request.user)
+        queryset = qs.order_by('?')[:10]
+        return Response(RideSerializer(queryset, many=True).data)
+
+    @transaction.atomic
+    def post(self, request):
+        user = request.user
+        data = request.data
+        nid_url = data.get('nid_image_url')
+        lic_url = data.get('license_image_url')
+
+        if nid_url and lic_url:
+            DriverProfile.objects.update_or_create(
+                user=user,
+                defaults={
+                    'nid_number': data.get('nid_number'),
+                    'license_number': data.get('license_number'),
+                    'full_name_on_id': data.get('full_name_on_id'),
+                    'nid_image_url': nid_url,
+                    'license_image_url': lic_url,
+                },
+            )
+            user.is_driver = True
+            user.save()
+
+        serializer = RideCreateSerializer(data=data)
+        if serializer.is_valid():
+            ride = serializer.save(driver=user)
+            stops = data.get('stops', [])
+            for index, stop in enumerate(stops):
+                if stop.get('name'):
+                    RideStop.objects.create(
+                        ride=ride,
+                        name=stop['name'],
+                        lat=stop.get('lat') or None,
+                        lng=stop.get('lng') or None,
+                        order=index,
+                    )
+            return Response(
+                RideSerializer(Ride.objects.prefetch_related('stops').get(id=ride.id)).data,
+                status=status.HTTP_201_CREATED,
+            )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class RideSearchView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        from datetime import timedelta
+        from django.db.models import Q
+
+        qs = Ride.objects.filter(
+            status='active',
+        ).prefetch_related('stops').select_related('driver')
+
+        if request.user.is_authenticated:
+            qs = qs.exclude(driver=request.user)
+
+        origin_q = request.query_params.get('origin', '').strip()
+        destination_q = request.query_params.get('destination', '').strip()
+        date_filter = request.query_params.get('date', '').strip()
+        min_seats = request.query_params.get('seats', '').strip()
+        time_filter = request.query_params.get('time', '').strip()
+        sort = request.query_params.get('sort', '').strip()
+
+        now = timezone.now()
+
+        if date_filter == 'today':
+            qs = qs.filter(departure_datetime__date=now.date())
+        elif date_filter == 'week':
+            qs = qs.filter(departure_datetime__date__lte=now.date() + timedelta(days=7))
+        elif date_filter == 'month':
+            qs = qs.filter(departure_datetime__date__lte=now.date() + timedelta(days=30))
+
+        if min_seats.isdigit():
+            qs = qs.filter(available_seats__gte=int(min_seats))
+
+        if origin_q:
+            qs = qs.filter(
+                Q(origin__icontains=origin_q) | Q(stops__name__icontains=origin_q)
+            ).distinct()
+
+        if destination_q:
+            qs = qs.filter(
+                Q(destination__icontains=destination_q) | Q(stops__name__icontains=destination_q)
+            ).distinct()
+
+        # Time of day filter — applied in Python after DB query
+        # morning: 05:00–11:59, afternoon: 12:00–16:59, evening: 17:00–23:59
+        if sort == 'price_asc':
+            qs = qs.order_by('price_per_seat', 'departure_datetime')
+        elif sort == 'price_desc':
+            qs = qs.order_by('-price_per_seat', 'departure_datetime')
+        else:
+            qs = qs.order_by('departure_datetime')
+
+        rides = list(qs[:200])
+
+        if time_filter == 'morning':
+            rides = [r for r in rides if 5 <= r.departure_datetime.hour < 12]
+        elif time_filter == 'afternoon':
+            rides = [r for r in rides if 12 <= r.departure_datetime.hour < 17]
+        elif time_filter == 'evening':
+            rides = [r for r in rides if r.departure_datetime.hour >= 17]
+
+        if origin_q and destination_q:
+            rides = [r for r in rides if self._from_before_to(r, origin_q, destination_q)]
+
+        return Response(RideSerializer(rides, many=True).data)
+
+    @staticmethod
+    def _waypoints(ride):
+        points = [{'name': ride.origin, 'order': 0}]
+        for stop in ride.stops.all():
+            points.append({'name': stop.name, 'order': stop.order + 1})
+        points.append({'name': ride.destination, 'order': len(points)})
+        return points
+
+    def _from_before_to(self, ride, from_q, to_q):
+        waypoints = self._waypoints(ride)
+        from_order = next(
+            (wp['order'] for wp in waypoints if from_q.lower() in wp['name'].lower()), None
+        )
+        to_order = next(
+            (wp['order'] for wp in waypoints if to_q.lower() in wp['name'].lower()), None
+        )
+        if from_order is None or to_order is None:
+            return False
+        return from_order < to_order
+
+# In BookRideView.post — add self-booking guard right after the ride lookup:
+
+class BookRideView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request, ride_id):
+        try:
+            ride = Ride.objects.select_for_update().get(id=ride_id)
+        except Ride.DoesNotExist:
+            return Response({"error": "Ride not found"}, status=404)
+
+        if ride.driver == request.user:
+            return Response({"error": "You cannot book your own ride"}, status=400)
+
+        if ride.status != 'active':
+            return Response({"error": "This ride is no longer available"}, status=400)
+
+        requested_seats = int(request.data.get('seats', 1))
+        if ride.available_seats < requested_seats:
+            return Response({"error": "Not enough seats available"}, status=400)
+
+        booking = Booking.objects.create(ride=ride, passenger=request.user, seats_booked=requested_seats)
+        ride.available_seats = F('available_seats') - requested_seats
+        ride.save()
+        ride.refresh_from_db()
+
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            'ride_updates',
+            {
+                'type': 'broadcast_seat_update',
+                'ride_id': str(ride.id),
+                'available_seats': ride.available_seats,
+            },
+        )
+        return Response({"booking_id": str(booking.id), "message": "Booked successfully"}, status=201)
+
+
+class VerifyPickupCodeView(APIView):
+    """
+    POST /api/rides/bookings/<booking_id>/verify-pickup/
+    Body: {"code": "1234"}
+
+    Driver-initiated. The passenger is shown a 4-digit code before pickup;
+    the driver enters it here once they're together in person. This is our
+    proof the two actually met — separate from GPS, which can be noisy or
+    spoofed on its own.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, booking_id):
+        try:
+            booking = Booking.objects.select_related('ride').get(
+                id=booking_id, ride__driver=request.user
+            )
+        except Booking.DoesNotExist:
+            return Response({"error": "Booking not found"}, status=404)
+
+        if booking.pickup_confirmed_at:
+            return Response({"error": "Pickup was already confirmed for this booking"}, status=400)
+
+        code = str(request.data.get('code', '')).strip()
+        if code != booking.pickup_code:
+            return Response({"error": "Incorrect code"}, status=400)
+
+        booking.pickup_confirmed_at = timezone.now()
+        booking.save(update_fields=['pickup_confirmed_at'])
+
+        return Response({"pickup_confirmed_at": booking.pickup_confirmed_at.isoformat()})
+
+
+class RidePassengersView(APIView):
+    """
+    Returns one entry per passenger, merging multiple bookings into
+    a single record with total_seats and a list of individual bookings.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, ride_id):
+        try:
+            ride = Ride.objects.get(id=ride_id, driver=request.user)
+        except Ride.DoesNotExist:
+            return Response({"error": "Not found or not authorized"}, status=404)
+
+        bookings = (
+            Booking.objects
+            .filter(ride=ride)
+            .select_related('passenger')
+            .prefetch_related('payments')
+            .order_by('passenger_id', 'created_at')
+        )
+
+        # Merge multiple bookings from the same passenger into one entry
+        merged: dict = {}
+        for b in bookings:
+            pid = str(b.passenger.id)
+            if pid not in merged:
+                merged[pid] = {
+                    "passenger": {
+                        "id": pid,
+                        "first_name": b.passenger.first_name,
+                        "last_name": b.passenger.last_name,
+                        "phone_number": b.passenger.phone_number,
+                        "is_verified": b.passenger.is_verified,
+                    },
+                    "total_seats": 0,
+                    "bookings": [],
+                    # Use the first booking's id as the primary one for cancel action
+                    "booking_id": str(b.id),
+                    "booked_at": b.created_at.isoformat(),
+                    "all_booking_ids": [],
+                }
+            merged[pid]["total_seats"] += b.seats_booked
+            merged[pid]["all_booking_ids"].append(str(b.id))
+
+            payment = next(
+                (p for p in b.payments.all() if p.status == 'successful'), None
+            )
+            merged[pid]["bookings"].append({
+                "booking_id": str(b.id),
+                "seats": b.seats_booked,
+                "booked_at": b.created_at.isoformat(),
+                "payment_id": str(payment.id) if payment else None,
+                "escrow_status": payment.escrow_status if payment else None,
+                "arrival_confirmation_requested_at": (
+                    payment.arrival_confirmation_requested_at.isoformat()
+                    if payment and payment.arrival_confirmation_requested_at else None
+                ),
+                "pickup_confirmed_at": (
+                    b.pickup_confirmed_at.isoformat() if b.pickup_confirmed_at else None
+                ),
+            })
+
+        return Response(list(merged.values()))
+
+
+# -------------------------
+# NEW: Google Geocoding API
+# -------------------------
+
+class LocationDetailView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        place_id = request.GET.get("place_id", "")
+        if not place_id:
+            return Response({"error": "place_id is required"}, status=400)
+
+        url = "https://maps.googleapis.com/maps/api/place/details/json"
+        params = {
+            "place_id": place_id,
+            "fields": "geometry",
+            "key": os.getenv('GOOGLE_MAPS_API_KEY')
+        }
+
+        try:
+            res = requests.get(url, params=params)
+            data = res.json()
+            print("try me", data)
+            location = data.get("result", {}).get("geometry", {}).get("location", {})
+
+            print("loc", location)
+            
+            return Response({
+                "latitude": location.get("lat"),
+                "longitude": location.get("lng")
+            })
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
+class LocationSearchView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        query = request.GET.get("q", "")
+        if not query or len(query) < 2:
+            return Response([])
+
+        # Use Places Autocomplete - This is what Google Maps uses
+        url = "https://maps.googleapis.com/maps/api/place/autocomplete/json"
+        
+        params = {
+            "input": query,
+            "components": "country:RW",
+            "key": os.getenv('GOOGLE_MAPS_API_KEY'),
+            # 'geocode' captures addresses, 'establishment' captures businesses like Simba
+            "types": "geocode|establishment" 
+        }
+
+        try:
+            res = requests.get(url, params=params)
+            data = res.json()
+
+            print("data", data, "params", params)
+
+            if data.get("status") != "OK":
+                return Response([])
+
+            results = []
+            for item in data.get("predictions", [])[:8]:
+                # We use 'description' here because it matches the 
+                # 'formatted_address' structure your frontend likely expects
+                results.append({
+                    "id": item.get("place_id"),
+                    "name": item.get("description"), 
+                    "main_text": item["structured_formatting"].get("main_text"),
+                    "secondary_text": item["structured_formatting"].get("secondary_text"),
+                    # Note: Autocomplete doesn't return Lat/Lng. 
+                    # Your 'onSelect' should call a separate 'Details' endpoint 
+                    # to get coordinates to save money on API calls.
+                })
+
+            return Response(results)
+        except Exception as e:
+            print(f"Error fetching locations: {e}")
+            return Response([], status=500)
+
+
+# -------------------------
+# NEW: My bookings
+# -------------------------
+class MyBookingsView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        ride_ids = Booking.objects.filter(
+            passenger=request.user
+        ).values_list("ride_id", flat=True)
+
+        return Response({
+            "booked_ride_ids": list(ride_ids)
+        })
+
+class MyPostedRidesView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        # No status filter — driver should see all their rides including cancelled ones
+        rides = (
+            Ride.objects
+            .filter(driver=request.user)
+            .prefetch_related('stops')
+            .order_by('-created_at')
+        )
+        return Response(RideSerializer(rides, many=True).data)
+
+
+class MyBookedRidesView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        bookings = (
+            Booking.objects
+            .filter(passenger=request.user)
+            .select_related('ride__driver')
+            .prefetch_related('ride__stops')
+            .order_by('-created_at')
+        )
+        rides = [b.ride for b in bookings]
+        return Response(RideSerializer(rides, many=True).data)
+
+class RideEditView(APIView):
+    """
+    PATCH /api/rides/:ride_id/edit/
+    Only the ride's driver can edit. Protects against reducing seats below
+    the number already booked.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def patch(self, request, ride_id):
+        try:
+            ride = Ride.objects.prefetch_related('stops').get(
+                id=ride_id, driver=request.user
+            )
+        except Ride.DoesNotExist:
+            return Response({"error": "Ride not found or not authorized"}, status=404)
+
+        data = request.data
+
+        # Protect available_seats: cannot go below already-booked count
+        if 'available_seats' in data:
+            booked_seats = Booking.objects.filter(ride=ride).aggregate(
+                total=models.Sum('seats_booked')
+            )['total'] or 0
+            new_seats = int(data['available_seats'])
+            if new_seats < booked_seats:
+                return Response(
+                    {"error": f"Cannot reduce seats below {booked_seats} (already booked)."},
+                    status=400,
+                )
+
+        with transaction.atomic():
+            # Update scalar fields
+            editable_fields = [
+                'origin', 'origin_lat', 'origin_lng',
+                'destination', 'destination_lat', 'destination_lng',
+                'pickup_point', 'pickup_lat', 'pickup_lng',
+                'departure_datetime', 'car_model', 'license_plate',
+                'available_seats', 'price_per_seat',
+            ]
+            for field in editable_fields:
+                if field in data:
+                    setattr(ride, field, data[field] if data[field] != '' else None
+                            if field.endswith(('_lat', '_lng')) else data[field])
+            ride.save()
+
+            # Replace stops entirely if provided
+            if 'stops' in data:
+                ride.stops.all().delete()
+                for index, stop in enumerate(data['stops']):
+                    if stop.get('name'):
+                        RideStop.objects.create(
+                            ride=ride,
+                            name=stop['name'],
+                            lat=stop.get('lat') or None,
+                            lng=stop.get('lng') or None,
+                            order=index,
+                        )
+
+        updated = Ride.objects.prefetch_related('stops').get(id=ride_id)
+        bookings = Booking.objects.filter(ride=updated).select_related('passenger')
+        driver_name = f"{request.user.first_name} {request.user.last_name}".strip()
+        for booking in bookings:
+            create_and_push(
+                recipient=booking.passenger,
+                type_=Notification.TYPE_RIDE_EDITED,
+                title="Ride updated",
+                body=f"The ride from {updated.origin} to {updated.destination} has been updated by the driver. Please check the new details.",
+                ride=updated,
+                actor_name=driver_name,
+            )
+        return Response(RideSerializer(updated).data)
+
+class CancelRideView(APIView):
+    """Driver cancels their entire ride. Notifies all booked passengers."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request, ride_id):
+        try:
+            ride = Ride.objects.prefetch_related('bookings__passenger').get(
+                id=ride_id, driver=request.user
+            )
+        except Ride.DoesNotExist:
+            return Response({"error": "Ride not found or not authorized"}, status=404)
+
+        if ride.status == 'cancelled':
+            return Response({"error": "Ride is already cancelled"}, status=400)
+
+        ride.status = 'cancelled'
+        ride.save()
+
+        # Notify every passenger
+        driver_name = f"{request.user.first_name} {request.user.last_name}".strip()
+        for booking in ride.bookings.all():
+            create_and_push(
+                recipient=booking.passenger,
+                type_=Notification.TYPE_RIDE_CANCELLED,
+                title="Ride cancelled",
+                body=f"Your ride from {ride.origin} to {ride.destination} on "
+                     f"{ride.departure_datetime.strftime('%b %d at %H:%M')} "
+                     f"has been cancelled by the driver.",
+                ride=ride,
+                actor_name=driver_name,
+            )
+
+        # Broadcast status change to all WS clients
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            'ride_updates',
+            {
+                'type': 'broadcast_ride_cancelled',
+                'ride_id': str(ride.id),
+            },
+        )
+
+        return Response({"message": "Ride cancelled successfully"})
+
+
+class CancelPassengerView(APIView):
+    """Driver removes a single passenger from their ride."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request, ride_id, booking_id):
+        try:
+            ride = Ride.objects.get(id=ride_id, driver=request.user)
+        except Ride.DoesNotExist:
+            return Response({"error": "Ride not found or not authorized"}, status=404)
+
+        try:
+            booking = Booking.objects.select_related('passenger').get(
+                id=booking_id, ride=ride
+            )
+        except Booking.DoesNotExist:
+            return Response({"error": "Booking not found"}, status=404)
+
+        passenger = booking.passenger
+        seats_returned = booking.seats_booked
+
+        # Restore seats
+        ride.available_seats = F('available_seats') + seats_returned
+        ride.save()
+        ride.refresh_from_db()
+
+        booking.delete()
+
+        # Notify the removed passenger
+        driver_name = f"{request.user.first_name} {request.user.last_name}".strip()
+        create_and_push(
+            recipient=passenger,
+            type_=Notification.TYPE_RIDE_CANCELLED,
+            title="Booking cancelled by driver",
+            body=f"The driver has removed your booking on the ride from "
+                 f"{ride.origin} to {ride.destination}. "
+                 f"{seats_returned} seat{'s' if seats_returned > 1 else ''} "
+                 f"{'have' if seats_returned > 1 else 'has'} been released.",
+            ride=ride,
+            actor_name=driver_name,
+        )
+
+        # Broadcast updated seat count
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            'ride_updates',
+            {
+                'type': 'broadcast_seat_update',
+                'ride_id': str(ride.id),
+                'available_seats': ride.available_seats,
+            },
+        )
+
+        return Response({"message": "Passenger removed successfully"})
+
+class RideDetailView(APIView):
+    """REST fallback so RideDetailsPage can load on hard refresh."""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, ride_id):
+        try:
+            ride = Ride.objects.prefetch_related('stops').select_related('driver').get(id=ride_id)
+            return Response(RideSerializer(ride).data)
+        except Ride.DoesNotExist:
+            return Response({"error": "Ride not found"}, status=404)
+
+class ReactivateRideView(APIView):
+    """
+    Driver reactivates a cancelled ride.
+    All existing bookings are always cleared — the ride goes back to
+    a fresh, unbooked state so previous passengers must rebook.
+    Optionally accepts a new departure_datetime if the original has passed.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, ride_id):
+        try:
+            ride = Ride.objects.prefetch_related('bookings__passenger', 'stops').get(
+                id=ride_id, driver=request.user
+            )
+        except Ride.DoesNotExist:
+            return Response({"error": "Ride not found or not authorized"}, status=404)
+
+        if ride.status == 'active':
+            return Response({"error": "Ride is already active"}, status=400)
+
+        new_departure = request.data.get('departure_datetime')
+        if new_departure:
+            ride.departure_datetime = new_departure
+        elif ride.departure_datetime <= timezone.now():
+            return Response(
+                {
+                    "error": "Departure time has passed",
+                    "code": "DEPARTURE_PASSED",
+                },
+                status=400,
+            )
+
+        # Restore seats and clear all bookings — ride starts fresh
+        booked_seats = sum(b.seats_booked for b in ride.bookings.all())
+        driver_name = f"{request.user.first_name} {request.user.last_name}".strip()
+
+        notified = set()
+        for booking in ride.bookings.all():
+            pid = str(booking.passenger.id)
+            if pid in notified:
+                continue
+            notified.add(pid)
+            create_and_push(
+                recipient=booking.passenger,
+                type_=Notification.TYPE_RIDE_CANCELLED,
+                title="Booking reset — ride reactivated",
+                body=(
+                    f"The ride from {ride.origin} to {ride.destination} was reactivated "
+                    f"with a new schedule. Your previous booking has been cleared — "
+                    f"please rebook if you still need a seat."
+                ),
+                ride=ride,
+                actor_name=driver_name,
+            )
+
+        ride.bookings.all().delete()
+        ride.available_seats = ride.available_seats + booked_seats
+        ride.status = 'active'
+        ride.save()
+
+        updated = Ride.objects.prefetch_related('stops').get(id=ride.id)
+
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            'ride_updates',
+            {
+                'type': 'broadcast_new_ride',
+                'data': RideSerializer(updated).data,
+            },
+        )
+
+        return Response(RideSerializer(updated).data)
+
+
+class MarkStopArrivedView(APIView):
+    """Driver marks an intermediate stop as arrived."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, ride_id, stop_id):
+        try:
+            ride = Ride.objects.get(id=ride_id, driver=request.user)
+        except Ride.DoesNotExist:
+            return Response({"error": "Not found or not authorized"}, status=404)
+
+        try:
+            stop = RideStop.objects.get(id=stop_id, ride=ride)
+        except RideStop.DoesNotExist:
+            return Response({"error": "Stop not found"}, status=404)
+
+        if stop.arrived_at:
+            return Response({"error": "Already marked as arrived"}, status=400)
+
+        stop.arrived_at = timezone.now()
+        stop.save()
+
+        return Response(RideStopSerializer(stop).data)
+
+
+class MarkDestinationArrivedView(APIView):
+    """Driver marks the final destination as arrived."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, ride_id):
+        try:
+            ride = Ride.objects.get(id=ride_id, driver=request.user)
+        except Ride.DoesNotExist:
+            return Response({"error": "Not found or not authorized"}, status=404)
+
+        if ride.arrived_at_destination:
+            return Response({"error": "Already marked as arrived"}, status=400)
+
+        ride.arrived_at_destination = timezone.now()
+        ride.save()
+
+        # This only marks trip progress. Payouts are triggered separately,
+        # per passenger, when each passenger confirms their own arrival
+        # via POST /api/payments/<payment_id>/confirm-arrival/.
+        return Response(RideSerializer(ride).data)

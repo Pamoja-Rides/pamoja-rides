@@ -1,0 +1,288 @@
+{% extends "unfold/layouts/base_simple.html" %}
+{% load i18n %}
+
+{% block content %}
+<style>
+  /* ── Stat cards ─────────────────────────────────────────────────── */
+  .pamoja-stat-card {
+    background: #ffffff;
+    border: 1px solid #EEF2F7;
+    border-radius: 14px;
+    padding: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.06);
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    min-height: 78px;
+  }
+  .dark .pamoja-stat-card {
+    background: #1F2937;
+    border-color: #374151;
+  }
+  .pamoja-stat-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: #F3F4F6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+  }
+  .dark .pamoja-stat-icon { background: #374151; }
+  .pamoja-stat-title {
+    font-size: 11px;
+    letter-spacing: .6px;
+    text-transform: uppercase;
+    color: #6B7280;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .dark .pamoja-stat-title { color: #9CA3AF; }
+  .pamoja-stat-value {
+    margin-top: 4px;
+    font-size: 22px;
+    line-height: 1.15;
+    font-weight: 800;
+    color: #111827;
+  }
+  .dark .pamoja-stat-value { color: #F9FAFB; }
+
+  /* ── Two-column grid ────────────────────────────────────────────── */
+  .pamoja-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-bottom: 32px;
+  }
+
+  /* ── Panel cards ────────────────────────────────────────────────── */
+  .pamoja-panel {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.08);
+  }
+  .dark .pamoja-panel {
+    background: #1F2937;
+    box-shadow: 0 1px 3px rgba(0,0,0,.3);
+  }
+  .pamoja-panel-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 16px;
+  }
+  .dark .pamoja-panel-title { color: #F9FAFB; }
+
+  /* ── List rows ──────────────────────────────────────────────────── */
+  .pamoja-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid #F3F4F6;
+    text-decoration: none;
+    color: inherit;
+  }
+  .dark .pamoja-row { border-bottom-color: #374151; }
+  .pamoja-row:hover { opacity: 0.75; }
+
+  .pamoja-row-icon-blue {
+    width: 36px; height: 36px; border-radius: 8px;
+    background: #EFF6FF;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .dark .pamoja-row-icon-blue { background: #1E3A5F; }
+
+  .pamoja-row-icon-red {
+    width: 36px; height: 36px; border-radius: 8px;
+    background: #FEF2F2;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .dark .pamoja-row-icon-red { background: #3B1212; }
+
+  .pamoja-row-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #111827;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .dark .pamoja-row-title { color: #F3F4F6; }
+
+  .pamoja-row-sub {
+    font-size: 11px;
+    color: #6B7280;
+  }
+  .dark .pamoja-row-sub { color: #9CA3AF; }
+
+  /* ── Status badges ──────────────────────────────────────────────── */
+  .badge-active {
+    font-size: 11px; font-weight: 600;
+    padding: 2px 8px; border-radius: 99px;
+    background: #DCFCE7; color: #16A34A;
+    white-space: nowrap;
+  }
+  .badge-cancelled {
+    font-size: 11px; font-weight: 600;
+    padding: 2px 8px; border-radius: 99px;
+    background: #FEE2E2; color: #DC2626;
+    white-space: nowrap;
+  }
+  .badge-pending {
+    font-size: 11px; font-weight: 600;
+    padding: 2px 8px; border-radius: 99px;
+    background: #FEF3C7; color: #D97706;
+    white-space: nowrap;
+  }
+  .dark .badge-active    { background: #14532D; color: #86EFAC; }
+  .dark .badge-cancelled { background: #450A0A; color: #FCA5A5; }
+  .dark .badge-pending   { background: #451A03; color: #FCD34D; }
+
+  /* ── Misc ───────────────────────────────────────────────────────── */
+  .pamoja-empty {
+    text-align: center;
+    padding: 24px 0;
+  }
+  .pamoja-empty-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #16A34A;
+    margin: 8px 0 0;
+  }
+  .dark .pamoja-empty-label { color: #86EFAC; }
+
+  .pamoja-no-data { font-size: 13px; color: #9CA3AF; }
+  .dark .pamoja-no-data { color: #6B7280; }
+
+  .pamoja-link-blue {
+    display: block;
+    margin-top: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #2563EB;
+    text-decoration: none;
+  }
+  .pamoja-link-red {
+    display: block;
+    margin-top: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #DC2626;
+    text-decoration: none;
+  }
+  .pamoja-flagged-review {
+    font-size: 11px;
+    font-weight: 600;
+    color: #DC2626;
+    white-space: nowrap;
+  }
+  .dark .pamoja-flagged-review { color: #FCA5A5; }
+</style>
+
+<div style="padding:24px;">
+
+  <!-- Stats grid -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:32px;">
+
+    {% for stat in stats_list %}
+    <div class="pamoja-stat-card">
+      <div class="pamoja-stat-icon">
+        <span class="material-symbols-outlined" style="font-size:22px;color:#2563EB;">
+          {{ stat.icon|default:"analytics" }}
+        </span>
+      </div>
+      <div style="min-width:0;">
+        <div class="pamoja-stat-title">{{ stat.title }}</div>
+        <div class="pamoja-stat-value">{{ stat.value }}</div>
+      </div>
+    </div>
+    {% endfor %}
+
+  </div>
+
+  <!-- Two-column panels -->
+  <div class="pamoja-grid">
+
+    <!-- Recent rides -->
+    <div class="pamoja-panel">
+      <h3 class="pamoja-panel-title">Recent Rides</h3>
+      {% for ride in recent_rides %}
+      <a href="/admin/rides/ride/{{ ride.id }}/change/" class="pamoja-row">
+        <div class="pamoja-row-icon-blue">
+          <span class="material-symbols-outlined" style="font-size:18px;color:#2563EB;">directions_car</span>
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div class="pamoja-row-title">{{ ride.origin }} → {{ ride.destination }}</div>
+          <div class="pamoja-row-sub">
+            {{ ride.driver.first_name }} {{ ride.driver.last_name }} · {{ ride.departure_datetime|date:"M d, H:i" }}
+          </div>
+        </div>
+        {% if ride.status == 'active' %}
+          <span class="badge-active">{{ ride.status }}</span>
+        {% elif ride.status == 'cancelled' %}
+          <span class="badge-cancelled">{{ ride.status }}</span>
+        {% else %}
+          <span class="badge-pending">{{ ride.status }}</span>
+        {% endif %}
+      </a>
+      {% empty %}
+      <p class="pamoja-no-data">No rides yet.</p>
+      {% endfor %}
+      <a href="/admin/rides/ride/" class="pamoja-link-blue">View all rides →</a>
+    </div>
+
+    <!-- Flagged profiles -->
+    <div class="pamoja-panel">
+      <h3 class="pamoja-panel-title">
+        ⚠ Flagged Identity Profiles
+        {% if flagged_profiles %}
+        <span class="badge-cancelled" style="margin-left:8px;">{{ flagged_profiles }}</span>
+        {% endif %}
+      </h3>
+      {% for profile in flagged_drivers %}
+      <a href="/admin/rides/driverprofile/{{ profile.id }}/change/" class="pamoja-row">
+        <div class="pamoja-row-icon-red">
+          <span class="material-symbols-outlined" style="font-size:18px;color:#DC2626;">flag</span>
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div class="pamoja-row-title">{{ profile.full_name_on_id }}</div>
+          <div class="pamoja-row-sub">
+            {{ profile.user.phone_number }} · NID: {{ profile.nid_number|truncatechars:12 }}
+          </div>
+        </div>
+        <span class="pamoja-flagged-review">Review →</span>
+      </a>
+      {% empty %}
+      <div class="pamoja-empty">
+        <span class="material-symbols-outlined" style="font-size:32px;color:#D1FAE5;">verified_user</span>
+        <p class="pamoja-empty-label">All profiles clear</p>
+      </div>
+      {% endfor %}
+      {% if flagged_profiles > 5 %}
+      <a href="/admin/rides/driverprofile/?identity_flag__exact=1" class="pamoja-link-red">View all flagged →</a>
+      {% endif %}
+    </div>
+
+  </div>
+
+  <!-- Payments banner -->
+  <div style="background:linear-gradient(135deg,#1E3A8A,#2563EB);border-radius:16px;padding:32px;color:white;display:flex;align-items:center;justify-content:space-between;">
+    <div>
+      <div style="font-size:11px;font-weight:600;opacity:0.7;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Coming Soon</div>
+      <h3 style="font-size:20px;font-weight:700;margin:0 0 8px;">Payment Escrow System</h3>
+      <p style="font-size:13px;opacity:0.8;margin:0;max-width:400px;">
+        Secure payment holding between passengers and drivers, automatic release on ride completion, dispute resolution and refund management.
+      </p>
+    </div>
+    <div style="opacity:0.4;">
+      <span class="material-symbols-outlined" style="font-size:64px;">account_balance_wallet</span>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

@@ -8,12 +8,25 @@ import {
   VerifyUser,
 } from "./pages/auth";
 import { Signup } from "./pages/auth/Signup";
-import { Home, Search } from "./pages/protected";
+import {
+  EditRide,
+  Home,
+  PostRide,
+  ProfilePage,
+  ProtectedRouteLayout,
+  RideDetailsPage,
+  Rides,
+  Search,
+  EarningsPage,
+} from "./pages/protected";
+import { RideProvider } from "./context/RideContextProvider";
+import { NotificationProvider } from "./context/NotificationProvider";
 
 const App = () => {
   return (
     <Routes>
       <Route path="/splash" element={<SplashScreen />} />
+
       <Route element={<PublicRoutes />}>
         <Route element={<AuthLayout />}>
           <Route path="/signin" element={<Signin />} />
@@ -21,11 +34,26 @@ const App = () => {
           <Route path="/verify" element={<VerifyUser />} />
         </Route>
       </Route>
-      <Route element={<ProtectedRoutes />}>
-        <Route path="/" element={<Home />} />
-        <Route path={"/search"} element={<Search />} />
-        <Route path={"/post"} element={<h1>Post Page</h1>} />
-        <Route path={"/rides"} element={<h1>My rides Page</h1>} />
+
+      <Route
+        element={
+          <RideProvider>
+            <NotificationProvider>
+              <ProtectedRoutes />
+            </NotificationProvider>
+          </RideProvider>
+        }
+      >
+        <Route element={<ProtectedRouteLayout />}>
+          <Route path="/" element={<Home />} />
+          <Route path="/search" element={<Search />} />
+          <Route path="/post" element={<PostRide />} />
+          <Route path="/rides" element={<Rides />} />
+          <Route path="/profile" element={<ProfilePage />} />
+        </Route>
+        <Route path="/earnings" element={<EarningsPage />} />
+        <Route path="/rides/:rideId" element={<RideDetailsPage />} />
+        <Route path="/rides/:rideId/edit" element={<EditRide />} />
       </Route>
     </Routes>
   );
