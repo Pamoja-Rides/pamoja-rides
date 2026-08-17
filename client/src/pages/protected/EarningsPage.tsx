@@ -393,12 +393,11 @@ const PayoutsTab = ({
       {/* Available balance */}
       <Box
         bg="green.50"
-        _dark={{ bg: "green.950" }}
+        _dark={{ bg: "green.950", borderColor: "green.800" }}
         borderRadius="2xl"
         p={5}
         borderWidth={1}
         borderColor="green.200"
-        _dark_borderColor="green.800"
       >
         <Text fontSize="xs" color="green.700" _dark={{ color: "green.300" }} mb={1}>
           Total paid out (this month)

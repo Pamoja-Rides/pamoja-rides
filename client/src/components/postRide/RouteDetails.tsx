@@ -12,7 +12,7 @@ import {
 import { useContext } from "react";
 import { LuMapPin, LuPlus, LuX } from "react-icons/lu";
 import { LocationComboBox } from "../common";
-import type { LocationOption, LocationPlace } from "@/types/location";
+import type { LocationOption } from "@/types/location";
 import axios from "axios";
 import { baseUrl } from "@/main";
 import { fixCoord } from "@/utils/fixCoords";
@@ -23,7 +23,7 @@ export const RouteDetails = () => {
   const { formData, setFormData } = context;
 
   const handleGetCoords = async (
-    loc: LocationPlace,
+    loc: LocationOption,
     newFormDataKey: string,
   ) => {
     try {
@@ -63,13 +63,13 @@ export const RouteDetails = () => {
     }
   };
 
-  const handleOriginSelect = (loc: LocationPlace) =>
+  const handleOriginSelect = (loc: LocationOption) =>
     handleGetCoords(loc, "origin");
 
-  const handleDestinationSelect = (loc: LocationPlace) =>
+  const handleDestinationSelect = (loc: LocationOption) =>
     handleGetCoords(loc, "destination");
 
-  const handlePickupSelect = (loc: LocationPlace) =>
+  const handlePickupSelect = (loc: LocationOption) =>
     handleGetCoords(loc, "pickUp");
 
   const addStop = () => {

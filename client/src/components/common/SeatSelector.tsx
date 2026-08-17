@@ -15,7 +15,6 @@ import { useTranslation } from "react-i18next";
 import { LuArmchair } from "react-icons/lu";
 
 export const SeatSelector = ({ title }: { title: string }) => {
-  const { t } = useTranslation();
   const [selectedSeatNumber, setSelectedSeatNumber] = useState(5);
 
   return (
@@ -72,8 +71,8 @@ const seats = createListCollection({
 });
 const SelectTrigger = () => {
   const { t } = useTranslation();
-  const [selectedSeatNumber, setSelectedSeatNumber] = useState(5);
-  const { selectedItems, value, getTriggerProps } = useSelectContext();
+  const [selectedSeatNumber] = useState(5);
+  const { getTriggerProps } = useSelectContext();
   // useEffect(() => {
   //   i18n.changeLanguage(value[0]);
   //   // eslint-disable-next-line react-hooks/exhaustive-deps

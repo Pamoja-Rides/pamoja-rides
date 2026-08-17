@@ -1,7 +1,6 @@
 import { Empty, Header } from "@/components/common";
 import { RideItem } from "./RideItem";
 import type { Ride } from "@/context/ride-context";
-import { useRide } from "@/context/ride-context";
 import { baseUrl } from "@/main";
 import {
   Alert,
@@ -27,7 +26,6 @@ export const Rides = () => {
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const defaultTab = searchParams.get("tab") ?? "posted";
-  const { isRideBooked } = useRide();
 
   const [postedRides, setPostedRides] = useState<Ride[]>([]);
   const [bookedRides, setBookedRides] = useState<Ride[]>([]);

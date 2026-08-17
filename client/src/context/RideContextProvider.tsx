@@ -42,7 +42,6 @@ export const RideProvider = ({ children }: { children: ReactNode }) => {
 
     socket.onmessage = (e) => {
       const msg = JSON.parse(e.data);
-      const currentUserId = getCurrentUserId();
 
       switch (msg.type) {
         case "ALL_RIDES":

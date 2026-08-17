@@ -393,10 +393,6 @@ export const RideDetailsPage = () => {
 
   const currentUserId = getCurrentUserId();
 
-  const isPastDeparture = ride
-    ? new Date(ride.departure_datetime) <= new Date()
-    : false;
-
   // ── Load ride ─────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!rideId) return;
@@ -1447,13 +1443,12 @@ export const RideDetailsPage = () => {
                     {myPayment.pickup_code && !myPayment.pickup_confirmed_at && (
                       <Box
                         bg="white"
-                        _dark={{ bg: "gray.900" }}
+                        _dark={{ bg: "gray.900", borderColor: "blue.800" }}
                         borderRadius="xl"
                         p={4}
                         mb={2}
                         borderWidth={1}
                         borderColor="blue.200"
-                        _dark_borderColor="blue.800"
                         textAlign="center"
                       >
                         <Text fontSize="xs" color="fg.muted" mb={3}>

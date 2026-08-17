@@ -1,6 +1,6 @@
 import { Empty, Header, LocationComboBox } from "@/components/common";
 import { FilterDrawer } from "@/components/overlays";
-import { RideContext, type Ride } from "@/context/ride-context";
+import type { Ride } from "@/context/ride-context";
 import type { LocationOption } from "@/types/location";
 import { DEFAULT_FILTERS, type SearchFilters } from "@/types/search";
 import {
@@ -14,7 +14,7 @@ import {
   VStack,
 } from "@chakra-ui/react";
 import axios from "axios";
-import { useContext, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { LuSearch, LuSettings2, LuX } from "react-icons/lu";
 import { useNavigate, useSearchParams } from "react-router";
@@ -36,7 +36,6 @@ export const Search = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const rideContext = useContext(RideContext);
 
   // Raw text tracked separately from selected LocationOption so
   // search fires on every keystroke, not just on dropdown selection
@@ -249,7 +248,6 @@ export const Search = () => {
               <RideItem
                 key={ride.id}
                 ride={ride}
-                isBooked={rideContext?.isRideBooked(ride.id) ?? false}
                 onClick={() => navigate(`/rides/${ride.id}`)}
               />
             ))}

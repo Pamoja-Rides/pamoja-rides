@@ -2,7 +2,6 @@ import { Box, Button, Center, Drawer, Portal } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { Filters } from "./Filters";
 import type { SearchFilters } from "@/types/search";
-import { DEFAULT_FILTERS } from "@/types/search";
 
 interface FilterDrawerProps {
   open: boolean;

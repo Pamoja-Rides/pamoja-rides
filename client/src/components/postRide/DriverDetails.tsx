@@ -218,14 +218,6 @@ export const DriverDetails = () => {
   if (!context) return null;
   const { formData, setFormData } = context;
 
-  const isProcessing =
-    nidOCR.isLoading || licenseOCR.isLoading || uploading || crossChecking;
-  const bothDocsReady =
-    formData.nid_image_url &&
-    formData.license_image_url &&
-    formData.nid_image_url !== "" &&
-    formData.license_image_url !== "";
-
   return (
     <VStack w="full" gap={5} mt={5}>
       <VStack>
