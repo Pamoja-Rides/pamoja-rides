@@ -17,6 +17,7 @@ import {
   RideDetailsPage,
   Rides,
   Search,
+  EarningsPage,
 } from "./pages/protected";
 import { RideProvider } from "./context/RideContextProvider";
 import { NotificationProvider } from "./context/NotificationProvider";
@@ -50,6 +51,7 @@ const App = () => {
           <Route path="/rides" element={<Rides />} />
           <Route path="/profile" element={<ProfilePage />} />
         </Route>
+        <Route path="/earnings" element={<EarningsPage />} />
         <Route path="/rides/:rideId" element={<RideDetailsPage />} />
         <Route path="/rides/:rideId/edit" element={<EditRide />} />
       </Route>

@@ -9,6 +9,9 @@ class Notification(models.Model):
     TYPE_RIDE_EDITED = 'ride_edited'
     TYPE_BOOKING_CONFIRMED = 'booking_confirmed'
     TYPE_RIDE_CANCELLED = 'ride_cancelled'
+    TYPE_FARE_RELEASED = 'fare_released'
+    TYPE_NO_SHOW_REFUND = 'no_show_refund'
+    TYPE_ARRIVAL_CONFIRMATION_REQUESTED = 'arrival_confirmation_requested'
 
     TYPES = [
         (TYPE_RIDE_BOOKED, 'Ride Booked'),
@@ -16,6 +19,9 @@ class Notification(models.Model):
         (TYPE_RIDE_EDITED, 'Ride Edited'),
         (TYPE_BOOKING_CONFIRMED, 'Booking Confirmed'),
         (TYPE_RIDE_CANCELLED, 'Ride Cancelled'),
+        (TYPE_FARE_RELEASED, 'Fare Released'),
+        (TYPE_NO_SHOW_REFUND, 'No-show Refund'),
+        (TYPE_ARRIVAL_CONFIRMATION_REQUESTED, 'Arrival Confirmation Requested'),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

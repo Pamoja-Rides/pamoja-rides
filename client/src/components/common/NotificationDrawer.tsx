@@ -84,7 +84,7 @@ export const NotificationDrawer = () => {
       <Portal>
         <Drawer.Backdrop />
         <Drawer.Positioner>
-          <Drawer.Content borderBottomRadius="2xl" maxH="85vh">
+          <Drawer.Content borderBottomRadius="2xl" maxH="85vh" css={{ maxWidth: "480px !important", marginInline: "auto" }}>
             <Drawer.Header>
               <HStack w="full" justify="space-between">
                 <HStack gap={2}>

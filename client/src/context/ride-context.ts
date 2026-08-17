@@ -6,6 +6,7 @@ export interface RideStop {
   lat: number | null;
   lng: number | null;
   order: number;
+  arrived_at: string | null;
 }
 
 export interface Ride {
@@ -33,6 +34,7 @@ export interface Ride {
   price_per_seat: string;
   status: string;
   created_at: string;
+  arrived_at_destination: string | null;
 }
 
 interface RideContextType {

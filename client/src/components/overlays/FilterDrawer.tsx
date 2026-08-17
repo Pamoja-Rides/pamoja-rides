@@ -32,7 +32,7 @@ export const FilterDrawer = ({
       <Portal>
         <Drawer.Backdrop />
         <Drawer.Positioner>
-          <Drawer.Content borderTopRadius={20} maxH="90vh">
+          <Drawer.Content borderTopRadius={20} maxH="90vh" css={{ maxWidth: "480px !important", marginInline: "auto" }}>
             <Center pt="3" pb="1">
               <Box
                 width="40px"

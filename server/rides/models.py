@@ -1,4 +1,5 @@
 import uuid
+import random
 from django.db import models
 from django.conf import settings
 
@@ -32,6 +33,11 @@ class DriverProfile(models.Model):
         help_text="Explanation of why this profile was flagged.",
     )
 
+    no_show_count = models.PositiveIntegerField(
+        default=0,
+        help_text="Number of times passengers reported this driver as a no-show.",
+    )
+
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -61,6 +67,7 @@ class Ride(models.Model):
     available_seats = models.PositiveIntegerField()
     status = models.CharField(max_length=20, default='active')
     price_per_seat = models.DecimalField(max_digits=10, decimal_places=2)
+    arrived_at_destination = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -75,10 +82,15 @@ class RideStop(models.Model):
     lat = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     lng = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     order = models.PositiveIntegerField()
+    arrived_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = 'ride_stops'
         ordering = ['order']
+
+
+def generate_pickup_code():
+    return f"{random.randint(0, 9999):04d}"
 
 
 class Booking(models.Model):
@@ -87,6 +99,12 @@ class Booking(models.Model):
     passenger = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     seats_booked = models.PositiveIntegerField(default=1)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    # Shared pickup code: shown to the passenger, entered by the driver at
+    # pickup. This is our proof the two actually met in person, separate
+    # from GPS (which can be noisy/spoofed on its own).
+    pickup_code = models.CharField(max_length=4, default=generate_pickup_code)
+    pickup_confirmed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = 'bookings'

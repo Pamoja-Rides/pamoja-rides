@@ -13,10 +13,10 @@ import { useTranslation } from "react-i18next";
 import {
   LuCar,
   LuCirclePlus,
-  LuCoins,
   LuHouse,
   LuSearch,
   LuUser,
+  LuWallet,
 } from "react-icons/lu";
 import { NavLink, useNavigate } from "react-router";
 
@@ -124,8 +124,10 @@ const AccountMenu = ({
         <Menu.Positioner>
           <Menu.Content>
             <Menu.Item value="cut">
-              <LuCoins />
-              <Box flex="1">{t("bottomTabs.accountMenu.payments")}</Box>
+              <LuWallet />
+              <Box flex="1" onClick={() => navigate("/earnings")}>
+                {t("bottomTabs.accountMenu.payments")}
+              </Box>
             </Menu.Item>
             <Menu.Item value="copy">
               <LuUser />

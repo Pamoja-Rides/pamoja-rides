@@ -21,16 +21,14 @@ export const RideProvider = ({ children }: { children: ReactNode }) => {
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const refreshBookings = useCallback(async () => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
     try {
-      const res = await axios.get<{ booked_ride_ids: string[] }>(
-        `${baseUrl}/rides/my-bookings/`,
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
-      setBookedRideIds(new Set(res.data.booked_ride_ids));
+      const res = await axios.get(`${baseUrl}/rides/my-bookings/`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
+      const ids: string[] = res.data.booked_ride_ids ?? [];
+      setBookedRideIds(new Set(ids)); // full replace — not new Set([...prev, ...ids])
     } catch {
-      // non-critical
+      // silent — booked state just won't update this cycle
     }
   }, []);
 

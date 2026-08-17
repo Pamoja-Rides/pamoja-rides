@@ -14,6 +14,7 @@ import os
 from pathlib import Path
 import dj_database_url
 from dotenv import load_dotenv
+from django.templatetags.static import static
 
 # Load .env
 load_dotenv()
@@ -38,24 +39,168 @@ ALLOWED_HOSTS = [
     '.onrender.com'
 ]
 
+MOMO_BASE_URL = os.environ.get('MOMO_BASE_URL', 'https://sandbox.momodeveloper.mtn.com')
+MOMO_TARGET_ENVIRONMENT = os.environ.get('MOMO_TARGET_ENVIRONMENT', 'sandbox')
+MOMO_COLLECTION_SUBSCRIPTION_KEY = os.environ.get('MOMO_COLLECTION_SUBSCRIPTION_KEY', '')
+MOMO_API_USER = os.environ.get('MOMO_API_USER', '')
+MOMO_API_KEY = os.environ.get('MOMO_API_KEY', '')
+MOMO_CALLBACK_URL = os.environ.get('MOMO_CALLBACK_URL', '')
+BOOKING_FEE_RWF = int(os.environ.get('BOOKING_FEE_RWF', 500))
+
+# Disbursements (payouts to drivers / refunds to passengers).
+# MTN MoMo treats Collections and Disbursements as separate API products,
+# each with their own subscription key + API user/key pair.
+MOMO_DISBURSEMENT_SUBSCRIPTION_KEY = os.environ.get('MOMO_DISBURSEMENT_SUBSCRIPTION_KEY', '')
+MOMO_DISBURSEMENT_API_USER = os.environ.get('MOMO_DISBURSEMENT_API_USER', '')
+MOMO_DISBURSEMENT_API_KEY = os.environ.get('MOMO_DISBURSEMENT_API_KEY', '')
+
+# Escrow-lite: fraction of the fare (not the service fee) Pamoja keeps as
+# commission when releasing funds to the driver.
+COMMISSION_RATE = float(os.environ.get('COMMISSION_RATE', '0.10'))
+
+# When true, MomoClient/MomoDisbursementClient skip real network calls and
+# auto-approve everything — lets escrow-lite be tested end-to-end without
+# working MoMo sandbox credentials. Defaults to on in DEBUG, off otherwise.
+# Set MOMO_SIMULATE=False explicitly once real MoMo creds are verified working.
+MOMO_SIMULATE = os.environ.get('MOMO_SIMULATE', 'True' if DEBUG else 'False') == 'True'
+
 
 # Application definition
 
 INSTALLED_APPS = [
-    'daphne',
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
-    'rest_framework',
-    'corsheaders',
-    'channels',
-    'users',
-    'rides',
-    'notifications'
+    # Unfold must come before django.contrib.admin
+    "unfold",
+    "unfold.contrib.filters",
+    "unfold.contrib.forms",
+    "daphne",
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+    "rest_framework",
+    "corsheaders",
+    "channels",
+    "users",
+    "rides",
+    "notifications",
+    "payments",
 ]
+
+UNFOLD = {
+    "SITE_TITLE": "Pamoja Rides",
+    "SITE_HEADER": "Pamoja Rides Admin",
+    "SITE_URL": "/",
+    "SITE_ICON": None,
+    "SITE_LOGO": lambda request: static("admin/img/logo.svg"),
+    "SITE_SYMBOL": "directions_car",
+    "SHOW_HISTORY": True,
+    "SHOW_VIEW_ON_SITE": False,
+    "COLORS": {
+        "primary": {
+            "50": "239 246 255",
+            "100": "219 234 254",
+            "200": "191 219 254",
+            "300": "147 197 253",
+            "400": "96 165 250",
+            "500": "59 130 246",
+            "600": "37 99 235",
+            "700": "29 78 216",
+            "800": "30 64 175",
+            "900": "30 58 138",
+            "950": "23 37 84",
+        },
+    },
+    "TABS": [
+        {
+            "models": ["users.user", "rides.driverprofile"],
+            "items": [
+                {"title": "All Users", "icon": "group", "link": "/admin/users/user/"},
+                {"title": "Driver Profiles", "icon": "badge", "link": "/admin/rides/driverprofile/"},
+            ],
+        },
+        {
+            "models": ["rides.ride", "rides.booking", "rides.ridestop"],
+            "items": [
+                {"title": "All Rides", "icon": "directions_car", "link": "/admin/rides/ride/"},
+                {"title": "Bookings", "icon": "confirmation_number", "link": "/admin/rides/booking/"},
+            ],
+        },
+    ],
+    "SIDEBAR": {
+        "show_search": True,
+        "show_all_applications": False,
+        "navigation": [
+            {
+                "title": "Dashboard",
+                "separator": False,
+                "items": [
+                    {
+                        "title": "Overview",
+                        "icon": "dashboard",
+                        "link": "/admin/",
+                    },
+                ],
+            },
+            {
+                "title": "Users",
+                "separator": True,
+                "items": [
+                    {
+                        "title": "All Users",
+                        "icon": "group",
+                        "link": "/admin/users/user/",
+                        "badge": "core.admin.user_count",
+                    },
+                    {
+                        "title": "Driver Profiles",
+                        "icon": "badge",
+                        "link": "/admin/rides/driverprofile/",
+                        "badge": "core.admin.driver_count",
+                    },
+                    {
+                        "title": "Flagged Identities",
+                        "icon": "flag",
+                        "link": "/admin/rides/driverprofile/?identity_flag__exact=1",
+                    },
+                ],
+            },
+            {
+                "title": "Rides",
+                "separator": True,
+                "items": [
+                    {
+                        "title": "Active Rides",
+                        "icon": "directions_car",
+                        "link": "/admin/rides/ride/?status__exact=active",
+                    },
+                    {
+                        "title": "All Rides",
+                        "icon": "list",
+                        "link": "/admin/rides/ride/",
+                    },
+                    {
+                        "title": "Bookings",
+                        "icon": "confirmation_number",
+                        "link": "/admin/rides/booking/",
+                    },
+                ],
+            },
+            {
+                "title": "Notifications",
+                "separator": True,
+                "items": [
+                    {
+                        "title": "Notifications",
+                        "icon": "notifications",
+                        "link": "/admin/notifications/notification/",
+                    },
+                ],
+            },
+        ],
+    },
+}
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
@@ -78,7 +223,7 @@ ROOT_URLCONF = 'core.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -142,11 +287,23 @@ USE_I18N = True
 
 USE_TZ = True
 
-
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+
+# 1. This is where collectstatic will PUT all your files
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
+# 2. These are extra places Django looks for static files (like your custom CSS)
+STATICFILES_DIRS = [
+    BASE_DIR / "static",
+]
+
+# 3. Use WhiteNoise to serve static files on Render (highly recommended)
+if not DEBUG:
+    MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
+    STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 AUTHENTICATION_BACKENDS = [
     'users.universal_login.UniversalAuthBackend',

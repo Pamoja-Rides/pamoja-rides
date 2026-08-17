@@ -1,0 +1,69 @@
+{# Reusable admin dashboard stat card. Expects: title, value, icon, color #}
+<style>
+  .pamoja-stat-card {
+    background: #FFFFFF;
+    border: 1px solid #EEF2F7;
+    border-radius: 14px;
+    padding: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.06);
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    min-height: 78px;
+  }
+  .pamoja-stat-card .stat-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: #F3F4F6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+  }
+  .pamoja-stat-card .stat-title {
+    font-size: 11px;
+    letter-spacing: .6px;
+    text-transform: uppercase;
+    color: #6B7280;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .pamoja-stat-card .stat-value {
+    margin-top: 4px;
+    font-size: 22px;
+    line-height: 1.15;
+    font-weight: 800;
+    color: #111827;
+  }
+
+  /* Dark mode overrides — Unfold adds .dark to <html> */
+  .dark .pamoja-stat-card {
+    background: #1F2937;
+    border-color: #374151;
+    box-shadow: 0 1px 3px rgba(0,0,0,.3);
+  }
+  .dark .pamoja-stat-card .stat-icon {
+    background: #374151;
+  }
+  .dark .pamoja-stat-card .stat-title {
+    color: #9CA3AF;
+  }
+  .dark .pamoja-stat-card .stat-value {
+    color: #F9FAFB;
+  }
+</style>
+
+<div class="pamoja-stat-card">
+  <div class="stat-icon">
+    <span class="material-symbols-outlined" style="font-size:22px;color:#2563EB;">
+      {{ icon|default:"analytics" }}
+    </span>
+  </div>
+  <div style="min-width:0;">
+    <div class="stat-title">{{ title }}</div>
+    <div class="stat-value">{{ value }}</div>
+  </div>
+</div>

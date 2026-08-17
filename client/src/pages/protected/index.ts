@@ -6,3 +6,4 @@ export * from "./Rides";
 export * from "./Profile";
 export * from "./RideDetailsPage";
 export * from "./EditRide";
+export * from "./EarningsPage";

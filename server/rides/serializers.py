@@ -7,7 +7,7 @@ from datetime import timedelta
 class RideStopSerializer(serializers.ModelSerializer):
     class Meta:
         model = RideStop
-        fields = ['id', 'name', 'lat', 'lng', 'order']
+        fields = ['id', 'name', 'lat', 'lng', 'order', 'arrived_at']
 
 
 class RideStopInputSerializer(serializers.Serializer):

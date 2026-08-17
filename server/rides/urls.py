@@ -12,8 +12,10 @@ from .views import (
     CancelRideView,
     CancelPassengerView,
     ReactivateRideView,
+    MarkStopArrivedView,
+    MarkDestinationArrivedView,
+    VerifyPickupCodeView,
 )
-
 urlpatterns = [
     path('', RideListCreateView.as_view(), name='ride-list-create'),
     path('search/', RideSearchView.as_view(), name='ride-search'),
@@ -27,4 +29,7 @@ urlpatterns = [
     path('<uuid:ride_id>/cancel/', CancelRideView.as_view(), name='cancel-ride'),
     path('<uuid:ride_id>/reactivate/', ReactivateRideView.as_view(), name='reactivate-ride'),
     path('<uuid:ride_id>/passengers/<uuid:booking_id>/cancel/', CancelPassengerView.as_view(), name='cancel-passenger'),
+    path('bookings/<uuid:booking_id>/verify-pickup/', VerifyPickupCodeView.as_view(), name='verify-pickup'),
+    path('<uuid:ride_id>/stops/<uuid:stop_id>/arrive/', MarkStopArrivedView.as_view(), name='mark-stop-arrived'),
+path('<uuid:ride_id>/arrive/', MarkDestinationArrivedView.as_view(), name='mark-destination-arrived')
 ]
