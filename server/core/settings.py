@@ -216,6 +216,8 @@ MIDDLEWARE = [
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "https://pamoja-rides-client.onrender.com",
+    "https://pamoja-ride.com",
+    "https://www.pamoja-ride.com",
 ]
 
 ROOT_URLCONF = 'core.urls'
