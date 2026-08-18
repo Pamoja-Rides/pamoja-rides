@@ -62,6 +62,14 @@ def release_escrow_for_payment(payment: Payment) -> Payment:
     driver_phone = ride.driver.phone_number
 
     if not driver_phone:
+        # Fall back to the phone number collected on the driver permit
+        # form (DriverProfile), which exists even for Google-only accounts
+        # that never set a phone number on their user record.
+        driver_phone = getattr(
+            getattr(ride.driver, 'driver_profile', None), 'phone_number', ''
+        )
+
+    if not driver_phone:
         payment.disbursement_status = Payment.DISBURSEMENT_FAILED
         payment.disbursement_reason = "Driver has no MoMo phone number on file"
         payment.save(update_fields=['disbursement_status', 'disbursement_reason', 'updated_at'])

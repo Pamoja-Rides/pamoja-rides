@@ -16,6 +16,12 @@ class DriverProfile(models.Model):
     full_name_on_id = models.CharField(max_length=255)
     nid_image_url = models.URLField(max_length=500)
     license_image_url = models.URLField(max_length=500)
+    phone_number = models.CharField(
+        max_length=20,
+        blank=True,
+        help_text="Phone number collected on the driver permit form. Used as a "
+                   "fallback MoMo payout number when the user has none on their account.",
+    )
 
     # AI verification results
     ai_verified_same_person = models.BooleanField(default=False)

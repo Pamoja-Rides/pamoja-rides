@@ -94,6 +94,7 @@ class RideConsumer(AsyncWebsocketConsumer):
                         'full_name_on_id': data.get('full_name_on_id'),
                         'nid_image_url': data.get('nid_image_url'),
                         'license_image_url': data.get('license_image_url'),
+                        'phone_number': data.get('driver_phone', ''),
                         'ai_verified_same_person': data.get('ai_verified_same_person', False),
                         'ai_confidence': data.get('ai_confidence', ''),
                         'ai_nid_name': data.get('ai_nid_name', ''),

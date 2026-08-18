@@ -124,6 +124,7 @@ const PostRideInner = () => {
       full_name_on_id: formData.full_name_on_id,
       nid_image_url: formData.nid_image_url,
       license_image_url: formData.license_image_url,
+      driver_phone: formData.driver_phone,
       ai_verified_same_person: formData.ai_verified_same_person,
       ai_confidence: formData.ai_confidence,
       ai_nid_name: formData.ai_nid_name,
