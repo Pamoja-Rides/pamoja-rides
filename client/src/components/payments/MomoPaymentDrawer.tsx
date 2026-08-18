@@ -78,6 +78,15 @@ export const MomoPaymentDrawer = ({
 
   useEffect(() => () => stopPolling(), []);
 
+  console.log(
+    "debug",
+    import.meta.env.DEV,
+    import.meta.env.VITE_ALLOW_SIMULATE,
+    status,
+    "result",
+    (import.meta.env.DEV || import.meta.env.VITE_ALLOW_SIMULATE === "true") &&
+      status !== "successful",
+  );
   const startPolling = (id: string) => {
     pollRef.current = setInterval(async () => {
       try {
@@ -220,7 +229,10 @@ export const MomoPaymentDrawer = ({
       <Portal>
         <Drawer.Backdrop />
         <Drawer.Positioner>
-          <Drawer.Content borderTopRadius="2xl" css={{ maxWidth: "480px !important", marginInline: "auto" }}>
+          <Drawer.Content
+            borderTopRadius="2xl"
+            css={{ maxWidth: "480px !important", marginInline: "auto" }}
+          >
             <Center pt="3" pb="1">
               <Box
                 width="40px"
