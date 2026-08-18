@@ -382,7 +382,7 @@ class SimulatePaymentSuccessView(APIView):
 
     @transaction.atomic
     def post(self, request, payment_id):
-        if not settings.DEBUG:
+        if not (settings.DEBUG or settings.ALLOW_SIMULATE):
             return Response({"error": "Not available in production"}, status=403)
 
         try:

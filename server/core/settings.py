@@ -64,6 +64,13 @@ COMMISSION_RATE = float(os.environ.get('COMMISSION_RATE', '0.10'))
 # Set MOMO_SIMULATE=False explicitly once real MoMo creds are verified working.
 MOMO_SIMULATE = os.environ.get('MOMO_SIMULATE', 'True' if DEBUG else 'False') == 'True'
 
+# Explicit opt-in to unlock SimulatePaymentSuccessView outside of DEBUG.
+# Off by default even in production — set ALLOW_SIMULATE=True on the
+# backend service's env vars only while you deliberately want the
+# "Simulate Payment" button to work against production. Turn back off
+# once real MoMo creds are wired up.
+ALLOW_SIMULATE = os.environ.get('ALLOW_SIMULATE', 'False') == 'True'
+
 
 # Application definition
 

@@ -327,19 +327,21 @@ export const MomoPaymentDrawer = ({
                     Pay {total.toLocaleString()} RWF via MoMo
                   </Button>
                 )}
-                {import.meta.env.DEV && status !== "successful" && (
-                  <Button
-                    w="full"
-                    size="sm"
-                    variant="outline"
-                    colorPalette="orange"
-                    borderRadius="xl"
-                    loading={status === "submitting"}
-                    onClick={handleSimulatePaid}
-                  >
-                    🧪 Simulate Payment Success (dev only)
-                  </Button>
-                )}
+                {(import.meta.env.DEV ||
+                  import.meta.env.VITE_ALLOW_SIMULATE === "true") &&
+                  status !== "successful" && (
+                    <Button
+                      w="full"
+                      size="sm"
+                      variant="outline"
+                      colorPalette="orange"
+                      borderRadius="xl"
+                      loading={status === "submitting"}
+                      onClick={handleSimulatePaid}
+                    >
+                      🧪 Simulate Payment Success
+                    </Button>
+                  )}
               </VStack>
             </Drawer.Body>
           </Drawer.Content>
